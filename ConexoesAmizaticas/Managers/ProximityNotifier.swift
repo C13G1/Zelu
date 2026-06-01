@@ -36,6 +36,10 @@ class ProximityNotifier: NSObject, CBCentralManagerDelegate {
             options: [CBCentralManagerOptionRestoreIdentifierKey: "com.conexoesamizaticas.proximity"]
         )
     }
+    
+    func cancel() {
+        centralManager = nil
+    }
 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn {

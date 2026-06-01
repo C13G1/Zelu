@@ -14,6 +14,7 @@ import SwiftData
 /// `EditProfileView` is the presentational shell on top of `EditProfileViewModel`. It surfaces the user's
 /// avatar and name field; the view model owns the form state and writes changes back to SwiftData on every edit.
 struct EditProfileView: View {
+    @AppStorage("isNotificationAllowed") var isNotificationAllowed: Bool = false
     @Environment(\.modelContext) private var modelContext
     @Binding var vm: InitialViewModel
 
@@ -66,6 +67,12 @@ struct EditProfileView: View {
                         Capsule()
                             .frame(width: width * 0.75, height: 5)
                     }
+                    
+                    HStack {
+                        Toggle("Ativar Notificações", isOn: $isNotificationAllowed)
+                            .padding()
+                            .font(.custom("Bolota", size: 20))
+                    }
 
                     Spacer()
                 }
@@ -78,6 +85,16 @@ struct EditProfileView: View {
         .onAppear {
             if viewModel == nil {
                 viewModel = EditProfileViewModel(profile: vm.profile, modelContext: modelContext)
+            }
+        }
+        .onChange(of: isNotificationAllowed) { oldValue, newValue in
+            if isNotificationAllowed{
+                NotificationManager.requestPermission()
+                ProximityNotifier.shared.start()
+            }
+            else {
+                NotificationManager.cancelAllNotifications()
+                ProximityNotifier.shared.cancel() 
             }
         }
     }

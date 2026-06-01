@@ -11,12 +11,16 @@ import Aptabase
 
 @main
 struct ConexoesAmizaticasApp: App {
+    @AppStorage("isNotificationAllowed") var isNotificationAllowed: Bool = false
     
     init() {
         Aptabase.shared.initialize(appKey: "A-US-8865447669")
         Aptabase.shared.trackEvent("app_started")
-        NotificationManager.requestPermission()
-        ProximityNotifier.shared.start()
+        
+        if isNotificationAllowed {
+            NotificationManager.requestPermission()
+            ProximityNotifier.shared.start()
+        }
     }
     
     var sharedModelContainer: ModelContainer = {

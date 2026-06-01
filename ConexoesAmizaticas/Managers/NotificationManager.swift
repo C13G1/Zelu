@@ -7,7 +7,7 @@
 
 import Foundation
 import UserNotifications
-
+import UIKit
 /// Schedules and cancels local reminders that nudge users to honor the meeting goals (`Meta`) attached to each connection.
 ///
 /// `NotificationManager` is intentionally stateless: it works exclusively with the OS notification center and derives
@@ -59,6 +59,13 @@ struct NotificationManager {
     static func cancelMetaReminder(for connection: Connection) {
         let id = "meta_\(connection.id.uuidString)"
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+    }
+    
+    /// Removes all Notifications.
+    static func cancelAllNotifications() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        UIApplication.shared.unregisterForRemoteNotifications()
     }
 
     /// Re-schedules reminders for every active connection, used after relaunch or major state changes.
