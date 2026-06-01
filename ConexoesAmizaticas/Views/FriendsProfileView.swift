@@ -18,7 +18,7 @@ struct FriendsProfileView: View {
     @Environment(\.modelContext) private var modelContext
 
     /// Controls the initial "New Friend" tutorial overlay to establish goals right after pairing.
-    @AppStorage("SetMetaOnboarding") var SetMetaOnboarding: Bool = false
+    @AppStorage("SetMetaOnboarding") var SetMetaOnboarding: Bool = true
     @Environment(\.dismiss) private var dismiss
     @State var blurLevel: CGFloat = 0.0
     var viewModel: FriendProfileViewModel
