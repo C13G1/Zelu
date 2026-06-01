@@ -61,7 +61,7 @@ struct FriendsProfileView: View {
 
                 Circle()
                     .frame(width: width * 1.6)
-                    .foregroundStyle(.friendProfileBackground)
+                    .foregroundStyle(.friendProfileBackGround)
                     .padding(.top, (height * -0.6))
 
                 VStack(spacing: 4) {
@@ -132,10 +132,10 @@ struct FriendsProfileView: View {
                 VStack {
                     Text("novo amigo\nadicionado!")
                         .font(.custom("Bolota", size: 32))
-                        .foregroundStyle(.friendProfileBackground)
+                        .foregroundStyle(.friendProfileBackGround)
                     Text("altere a sua meta com\n\(viewModel.getFriendName()) aqui!")
                         .font(.custom("Sora", size: 20))
-                        .foregroundStyle(.friendProfileBackground)
+                        .foregroundStyle(.friendProfileBackGround)
                         .multilineTextAlignment(.center)
                         .padding(.top, 12)
                 }
