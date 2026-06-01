@@ -63,7 +63,6 @@ class FriendFeedViewModel {
         try? modelContext.save()
         refreshPosts()
         
-        // Resetting scroll anchors prevents Index Out of Range crashes when the array shrinks
         snappedItem = 0
         draggingItem = 0
         activeIndex = 0
@@ -82,15 +81,18 @@ class FriendFeedViewModel {
     
     /// Calculates the horizontal displacement of the image to simulate a curved cylinder.
     func xOffset(_ index: Int) -> Double {
-        let effectiveCount = Double(max(posts.count, 3))
-        let angle = Double.pi * 2 / effectiveCount * distance(index)
-        return sin(angle) * 245
+        let count = Double(max(posts.count, 3))
+        let angle = Double.pi * 2 / count * distance(index)
+        // Raio cresce com o número de cards para manter espaçamento visual
+        let radius = max(245, count * 40)
+        return sin(angle) * radius
     }
     
     /// Creates the subtle vertical dip at the edges to enhance the 3D depth effect.
     func yOffset(_ index: Int) -> Double {
         let dist = abs(distance(index))
-        if dist > 1.5 { return -1000 }
+        let hideThreshold = hideThreshold()
+        if dist > hideThreshold { return -1000 }
         return -pow(dist * 30, 2) / 10
     }
     
@@ -113,7 +115,13 @@ class FriendFeedViewModel {
     /// Hides cards that have rotated around to the "back" side of the virtual cylinder.
     func opacity(_ index: Int) -> Double {
         let dist = abs(distance(index))
-        return dist > 1.5 ? 0.0 : 1.0
+        return dist > hideThreshold() ? 0.0 : 1.0
+    }
+    
+    // Threshold dinâmico: esconde cards que passaram do "fundo" do cilindro
+    private func hideThreshold() -> Double {
+        let count = Double(max(posts.count, 3))
+        return count / 4.0
     }
     
     // MARK: - Gesture Tracking
