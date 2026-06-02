@@ -17,7 +17,7 @@ import Aptabase
 /// `OnboardingViewModel` owns the form state, validates input, asynchronously loads the picked photo
 /// and finalizes the flow by inserting the freshly built profile through the supplied `ModelContext`.
 @Observable
-class OnboardingViewModel {
+class CreatProfileViewModel {
     var name: String = ""
     var selectedPhoto: PhotosPickerItem?
     var profileImageData: Data?
