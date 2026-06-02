@@ -23,7 +23,7 @@ struct GalleryFrame: View {
                 .resizable()
                 .scaledToFill()
                 .frame(width: width * 0.45,
-                       height: height * 0.25)
+                       height: height * 0.27)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
