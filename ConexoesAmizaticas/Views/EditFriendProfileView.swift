@@ -36,20 +36,24 @@ struct EditFriendProfileView: View {
                             .resizable()
                             .scaledToFill()
                             .clipShape(Circle())
-                            .frame(width: UIScreen.main.bounds.width * 0.3, height: UIScreen.main.bounds.height * 0.3)
+                            .frame(width: 120, height: 120)
                     } else {
                         Image(systemName: "person.crop.circle.badge.plus")
                             .font(.system(size: 44))
                             .foregroundStyle(.gray)
                     }
-                    Image(systemName: "pencil")
-                        .foregroundStyle(.lightBackground)
-                        .font(.title)
-                        .foregroundStyle(.white)
-                        .padding(10)
-                        .background(Color.gray)
-                        .clipShape(Circle())
-                        .offset(x: 80, y: 100)
+                    
+                    ZStack {
+                        Circle()
+                            .frame(width: UIScreen.main.bounds.width * 0.09, height: UIScreen.main.bounds.width * 0.1)
+                            .foregroundStyle(.gray)
+                        
+                        Image(systemName: "pencil")
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.top, UIScreen.main.bounds.height * 0.1)
+                    .padding(.leading, UIScreen.main.bounds.height * 0.1)
                 }
             }
             .onChange(of: viewModel.selectedPhoto) { _, _ in
@@ -62,8 +66,6 @@ struct EditFriendProfileView: View {
                 .background(.gray.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 40)
-
-            Spacer()
         }
         .padding(.top, 40)
         .background(.lightBackground)

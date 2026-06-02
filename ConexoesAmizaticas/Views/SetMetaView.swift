@@ -33,23 +33,11 @@ struct SetMetaView: View {
         ZStack {
             Rectangle()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .foregroundStyle(.friendProfileBackGround)
+                .foregroundStyle(.friendProfileBackground)
                 .ignoresSafeArea()
 
             VStack(alignment: .center) {
-                Image(uiImage: viewModel.getFriendImage() ?? UIImage(named: "defaultPicture") ?? UIImage())
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: UIScreen.main.bounds.width * 0.274,
-                           height: UIScreen.main.bounds.width * 0.274)
-                    .clipShape(Circle())
-                    .padding(.top, 40)
-
-                Text(viewModel.getFriendName().uppercased())
-                    .font(.custom("Bolota", size: 48))
-                    .padding()
-                    .multilineTextAlignment(.center)
-                    .padding(.bottom, 60)
+                EditFriendProfileView(connection: viewModel.connection)
 
                 HStack {
                     Text("PROMESSA")
@@ -64,6 +52,7 @@ struct SetMetaView: View {
                     .tint(.gray)
                 }
                 .padding(.horizontal, 30)
+                .padding(.top, 30)
 
                 Spacer()
 
