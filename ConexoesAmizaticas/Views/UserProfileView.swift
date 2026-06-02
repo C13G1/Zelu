@@ -76,7 +76,7 @@ struct UserProfileView: View {
         }
         #if DEBUG
         .fullScreenCover(isPresented: $showOnboardingTest) {
-            OnboardingView { newName, newImageData in
+            CreatProfileView { newName, newImageData in
                 vm.profile.editName(newName)
                 if let newImageData {
                     vm.profile.editProfileImageData(newImageData)
