@@ -66,6 +66,10 @@ struct EditFriendProfileView: View {
                 .background(.gray.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 40)
+                .onChange(of: viewModel.name) { _, _ in
+                    viewModel.enforceCharacterLimit()
+                }
+
         }
         .padding(.top, 40)
         .background(.lightBackground)
