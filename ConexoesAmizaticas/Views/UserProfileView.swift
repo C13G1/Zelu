@@ -40,11 +40,11 @@ struct UserProfileView: View {
                     Text("Sem amigos ainda")
                         .font(.custom("Bolota", size: 32))
                         .foregroundStyle(.lightBackground)
-                        .frame(height: height * 0.35)
+                        .frame(height: height * 0.25)
                 } else {
                     RelationshipChart(
                         viewModel: viewModel,
-                        size: CGSize(width: width * 0.8, height: height * 0.35)
+                        size: CGSize(width: width * 0.75, height: height * 0.25)
                     )
                 }
 
@@ -106,7 +106,6 @@ struct UserProfileView: View {
         }
         .foregroundStyle(.lightBackground)
     }
-
 }
 
 #Preview {

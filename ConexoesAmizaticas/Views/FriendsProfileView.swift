@@ -18,7 +18,7 @@ struct FriendsProfileView: View {
     @Environment(\.modelContext) private var modelContext
 
     /// Controls the initial "New Friend" tutorial overlay to establish goals right after pairing.
-    @AppStorage("SetMetaOnboarding") var SetMetaOnboarding: Bool = true
+    @AppStorage("SetMetaOnboarding") var SetMetaOnboarding: Bool = false
     @Environment(\.dismiss) private var dismiss
     @State var blurLevel: CGFloat = 0.0
     var viewModel: FriendProfileViewModel
@@ -61,25 +61,19 @@ struct FriendsProfileView: View {
 
                 Circle()
                     .frame(width: width * 1.6)
-                    .foregroundStyle(.friendProfileBackGround)
+                    .foregroundStyle(.friendProfileBackground)
                     .padding(.top, (height * -0.6))
 
                 VStack(spacing: 4) {
                     ZStack(alignment: .bottomTrailing) {
                         Image(uiImage: viewModel.getFriendImage() ??
-                              UIImage(named: "DefaultPicture")!)
+                              UIImage(named: "defaultPicture")!)
                             .resizable()
                             .scaledToFill()
                             .frame(width: 108, height: 108)
                             .clipShape(Circle())
                             .padding(.top)
                             .id(refreshToken)
-
-                        NavigationLink(destination: EditFriendProfileView(connection: viewModel.connection)) {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(.white, viewModel.getProfileColor())
-                        }
                     }
                     .padding(.top, 10)
 
@@ -132,10 +126,10 @@ struct FriendsProfileView: View {
                 VStack {
                     Text("novo amigo\nadicionado!")
                         .font(.custom("Bolota", size: 32))
-                        .foregroundStyle(.friendProfileBackGround)
+                        .foregroundStyle(.friendProfileBackground)
                     Text("altere a sua meta com\n\(viewModel.getFriendName()) aqui!")
                         .font(.custom("Sora", size: 20))
-                        .foregroundStyle(.friendProfileBackGround)
+                        .foregroundStyle(.friendProfileBackground)
                         .multilineTextAlignment(.center)
                         .padding(.top, 12)
                 }
