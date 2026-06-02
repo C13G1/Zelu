@@ -48,7 +48,7 @@ class OnboardingViewModel {
     /// - Parameter modelContext: The SwiftData context that will receive the new profile.
     func createProfile(modelContext: ModelContext) {
         let finalImageData = profileImageData
-            ?? UIImage(named: "defaultPicture")?.jpegData(compressionQuality: 1)
+        ?? UIImage(named: "defaultPicture")?.jpegData(compressionQuality: 0.99)
             ?? Data()
         let user = User(
             name: name.trimmingCharacters(in: .whitespaces),
