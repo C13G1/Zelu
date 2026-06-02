@@ -21,6 +21,9 @@ class EditFriendProfileViewModel {
     var selectedPhoto: PhotosPickerItem?
     var profileImageData: Data?
 
+    /// Maximum character length enforced on the friend name field.
+    let characterLimit: Int = 10
+
     let connection: Connection
 
     init(connection: Connection) {
@@ -32,6 +35,13 @@ class EditFriendProfileViewModel {
     /// Returns `true` while the name field holds at least one non-whitespace character.
     var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Trims `name` down to `characterLimit` whenever the user types past the limit.
+    func enforceCharacterLimit() {
+        if name.count > characterLimit {
+            name = String(name.prefix(characterLimit))
+        }
     }
 
     /// Loads the newly picked photo data asynchronously into the local buffer.
