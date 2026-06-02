@@ -74,12 +74,6 @@ struct FriendsProfileView: View {
                             .clipShape(Circle())
                             .padding(.top)
                             .id(refreshToken)
-
-                        NavigationLink(destination: EditFriendProfileView(connection: viewModel.connection)) {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(.white, viewModel.getProfileColor())
-                        }
                     }
                     .padding(.top, 10)
 

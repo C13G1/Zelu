@@ -51,7 +51,7 @@ struct SetMetaView: View {
                     .pickerStyle(.menu)
                     .tint(.gray)
                 }
-                .padding(.horizontal, 30)
+                .padding(.horizontal, 45)
                 .padding(.top, 30)
 
                 Spacer()
