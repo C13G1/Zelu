@@ -51,9 +51,11 @@ class BLEViewModel {
 
     private var bleManager: BLEManager?
     private var holdTimer: Timer?
+    var blNotificationManager: BluetoothNotificationManager
 
     init(profile: User) {
         self.profile = profile
+        self.blNotificationManager = BluetoothNotificationManager()
     }
 
     // MARK: - BLE lifecycle
@@ -234,6 +236,14 @@ class BLEViewModel {
             try? await Task.sleep(for: .milliseconds(400))
             onConfirmed?()
         }
+    }
+    
+    func requestBluetoothPermission(){
+        blNotificationManager.requestBluetoothPermission()
+    }
+    
+    func centralManagerDidUpdateState(){
+        blNotificationManager.requestBluetoothPermission()
     }
 
     #if DEBUG

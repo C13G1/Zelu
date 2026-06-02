@@ -85,9 +85,14 @@ struct BLEView: View {
             }
         }
         .onAppear {
-            Aptabase.shared.trackEvent("screen_view", with: ["name": "ble_search"])
-            viewModel.onConfirmed = { dismiss() }
-            viewModel.startBLE()
+            if viewModel.blNotificationManager.isBluetoothReady == true {
+                Aptabase.shared.trackEvent("screen_view", with: ["name": "ble_search"])
+                viewModel.onConfirmed = { dismiss() }
+                viewModel.startBLE()
+            }
+            else {
+                viewModel.requestBluetoothPermission()
+            }
         }
         .onDisappear { viewModel.stopBLE() }
         .onChange(of: viewModel.foundFriend) { _, _ in viewModel.tryTransitionToMatched() }
