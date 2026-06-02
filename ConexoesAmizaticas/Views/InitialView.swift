@@ -55,7 +55,7 @@ struct InitialView: View {
                             Text("Bem Vindo Ao Zelu")
                                 .font(.custom("Bolota", size: 32))
 
-                            Text("adicione seus amigos para iniciar")
+                            Text("adicione seus amigos\npara iniciar")
                                 .font(.custom("Sora-Regular", size: 20))
                                 .multilineTextAlignment(.center)
                                 .frame(width: width * 0.6)

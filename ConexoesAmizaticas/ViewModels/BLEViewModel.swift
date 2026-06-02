@@ -61,7 +61,12 @@ class BLEViewModel {
     // MARK: - BLE lifecycle
 
     /// Boots a fresh `BLEManager` and starts both scanning and advertising.
+    /// Re-starts the existing manager instead of recreating it if one is already live.
     func startBLE() {
+        if let bleManager {
+            bleManager.startBLE()
+            return
+        }
         let manager = BLEManager(profile: profile)
         manager.onConnectionOpened = { [weak self] in
             self?.foundFriend = true
@@ -98,6 +103,21 @@ class BLEViewModel {
                 showSearchAgainButton = true
             }
         }
+    }
+
+    /// Resets the visual state machine back to `.searching` so a fresh entry to the screen never
+    /// shows a stale `.confirmed`/`.matched` state left over from a previous session (the destination
+    /// view model is retained by the eager `NavigationLink` in the tab bar).
+    func resetSessionState() {
+        foundFriend = false
+        friend = nil
+        showSearchAgainButton = false
+        canConfirm = false
+        showConfirmationBackground = false
+        confirmedReveal = 0
+        holdProgress = 0
+        isHolding = false
+        phase = .searching
     }
 
     /// Resets the entire screen state so the user can hunt for another nearby peer.
