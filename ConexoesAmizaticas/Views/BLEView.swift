@@ -61,7 +61,7 @@ struct BLEView: View {
                     BLEAvatarsLayer(
                         size: geo.size,
                         profileImageData: viewModel.profile.profilePicture,
-                        friendImageData: viewModel.friend?.profilePicture,
+                        friendImageData: viewModel.focusedFriend?.profilePicture,
                         phase: viewModel.phase,
                         avatarDiameter: avatarDiameter,
                         topY: topY,
@@ -96,7 +96,7 @@ struct BLEView: View {
         }
         .onDisappear { viewModel.stopBLE() }
         .onChange(of: viewModel.foundFriend) { _, _ in viewModel.tryTransitionToMatched() }
-        .onChange(of: viewModel.friend?.id) { _, _ in viewModel.tryTransitionToMatched() }
+        .onChange(of: viewModel.focusedFriend?.id) { _, _ in viewModel.tryTransitionToMatched() }
         .navigationTitle("Adicionar amigo")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(isWhiteMode ? Color.white : Color.bleBackground, for: .navigationBar)
@@ -178,7 +178,7 @@ struct BLEView: View {
     }
 
     private var matchedText: some View {
-        let friend = viewModel.friend
+        let friend = viewModel.focusedFriend
         let headline = friend.map { friend in
             viewModel.isExistingFriend(in: existingConnections)
                 ? "Você e \(friend.name) se encontraram!"

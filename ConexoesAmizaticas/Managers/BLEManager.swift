@@ -10,42 +10,21 @@ import CoreBluetooth
 import UIKit
 import SwiftUI
 
-/// A lightweight Data Transfer Object used exclusively for serializing `User` payloads over the BLE
-/// L2CAP stream before they are reconstructed as full SwiftData models on the receiver side.
-struct UserDTO: Codable {
-    var name: String
-    var profilePicture: Data
-    var id: UUID
-}
-
-/// A manager responsible for discovering and establishing Bluetooth Low Energy (BLE) connections with nearby peers.
-///
 /// `BLEManager` acts as both a Central and a Peripheral. It broadcasts the user's profile and scans for other users
-/// broadcasting the specific app service. Once connected, it uses an L2CAP channel to stream profile data.
-class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegate, CBPeripheralDelegate, StreamDelegate {
-
-    /// Maximum bytes read from the L2CAP input stream in a single pass.
-    private static let bufferSize: Int = 1024
+/// broadcasting the specific app service. When it discovers users, it sends them to the `BLEViewModel`
+class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegate, CBPeripheralDelegate {
 
     /// A closure triggered when a complete user profile is successfully received over the BLE stream.
-    var onFriendFound: ((User) -> Void)?
-    
-    /// A closure triggered when the L2CAP data stream is successfully opened and ready for data transfer.
-    var onConnectionOpened: (() -> Void)?
+    var onFriendFound: ((String) -> Void)?
 
     var centralManager: CBCentralManager!
     var peripheralManager: CBPeripheralManager!
-    var connectedPeripheral: CBPeripheral!
     
     let serviceID: CBUUID = CBUUID(string: "451A3F17-0062-41E1-82CC-98496CDA05FB")
     let portCharacteristicID: CBUUID = CBUUID(string: "B2C20EFB-B20F-4F0D-B708-4EA408F2C500")
     let advertisingKey: Int = Int.random(in: 1...100_000_000)
-    
-    var psm: CBL2CAPPSM!
-    var channelL2CAP: CBL2CAPChannel!
-    var inputStream: InputStream!
-    var outputStream: OutputStream!
-    var dataStream: Data = Data()
+    var foundUsers: [String] = []
+    let btThreshold: Int = -80
     
     /// The profile of the current user that will be transmitted to peers.
     let profile: User
@@ -61,7 +40,6 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         print("start ble")
         stopBLE()
         didSendProfile = false
-        dataStream = Data()
         self.centralManager = CBCentralManager(delegate: self, queue: nil)
         self.peripheralManager = CBPeripheralManager(delegate: self, queue: nil)
     }
@@ -70,22 +48,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     func stopBLE() {
         print("stop ble")
         centralManager?.stopScan()
-        if let peripheral = connectedPeripheral {
-            peripheral.delegate = nil
-            centralManager?.cancelPeripheralConnection(peripheral)
-        }
         centralManager?.delegate = nil
         peripheralManager?.stopAdvertising()
         peripheralManager?.delegate = nil
-        inputStream?.close()
-        outputStream?.close()
-        inputStream?.remove(from: .main, forMode: .default)
-        outputStream?.remove(from: .main, forMode: .default)
-        inputStream = nil
-        outputStream = nil
-        channelL2CAP = nil
-        connectedPeripheral = nil
-        psm = nil
     }
 
     // MARK: - CoreBluetooth Delegates
@@ -99,7 +64,8 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             print("central state: \(central.state.rawValue)")
         }
     }
-
+    
+    
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi: NSNumber) {
         guard let keyString = advertisementData[CBAdvertisementDataLocalNameKey] as? String,
               let peripheralKey = Int(keyString) else { return }
@@ -112,11 +78,10 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         } else {
             print("virou central")
             centralManager.stopScan()
-            self.connectedPeripheral = peripheral
-            centralManager.connect(connectedPeripheral)
+            centralManager.connect(peripheral)
         }
     }
-
+    
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("central connected")
         peripheral.delegate = self
@@ -145,6 +110,43 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
+
+//
+//    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi: NSNumber) {
+//        
+//        print("Found friend on BLE")
+//        guard rssi.intValue >= btThreshold else {
+//            print("user muito longe")
+//            return
+//        }
+//        guard let userID = advertisementData[CBAdvertisementDataLocalNameKey] as? String else {
+//            print("problema ao decodificar id: \(advertisementData[CBAdvertisementDataLocalNameKey])")
+//            return
+//        }
+//        
+//        print("verified friend: \(userID)!")
+//        if let onFriendFound = onFriendFound {
+//            onFriendFound(userID)
+//        }
+//        else {
+//            print("no function for finding friends")
+//        }
+//    }
+//
+//    func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
+//        if peripheral.state == .poweredOn {
+//            print("peripheral powered on")
+//            let service = CBMutableService(type: serviceID, primary: true)
+//            peripheral.add(service)
+//            peripheral.startAdvertising([
+//                CBAdvertisementDataServiceUUIDsKey: [serviceID],
+//                CBAdvertisementDataLocalNameKey: profile.id.uuidString
+//            ])
+//        } else {
+//            print("peripheral state: \(peripheral.state.rawValue)")
+//        }
+//    }
+    
     func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
         if peripheral.state == .poweredOn {
             print("peripheral powered on")
@@ -165,164 +167,34 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             print("peripheral state: \(peripheral.state.rawValue)")
         }
     }
-
+    
     func peripheralManager(_ peripheral: CBPeripheralManager, didReceiveRead request: CBATTRequest) {
         print("received read request")
-        guard request.characteristic.uuid == portCharacteristicID, self.psm != nil else {
+        guard request.characteristic.uuid == portCharacteristicID else {
             peripheral.respond(to: request, withResult: .attributeNotFound)
             return
         }
-        
-        var psmValue = self.psm!
-        let data = Data(bytes: &psmValue, count: MemoryLayout<CBL2CAPPSM>.size)
-        request.value = data
-        peripheral.respond(to: request, withResult: .success)
+        var uuid = profile.id.uuidString
+        var correctUUID = uuid
+        withUnsafePointer(to: &correctUUID) {
+            let data = Data(bytes: $0, count: uuid.count)
+            request.value = data
+            peripheral.respond(to: request, withResult: .success)
+        }
     }
-
+    
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: (any Error)?) {
         print("updated value")
         if let error = error { print(error); return }
         guard characteristic.uuid == portCharacteristicID,
-              let data = characteristic.value,
-              data.count >= MemoryLayout<CBL2CAPPSM>.size else {
-            print("psm data inválido")
+              let data = characteristic.value else {
+            print("id inválido")
             return
         }
-        self.psm = data.withUnsafeBytes { $0.load(as: CBL2CAPPSM.self) }
-        peripheral.openL2CAPChannel(self.psm)
+        let uuid = data.withUnsafeBytes { $0.load(as: String.self) }
+        self.foundUsers.append(uuid)
+        guard let onFriendFound = onFriendFound else { return }
+        onFriendFound(uuid)
     }
 
-    func peripheralManager(_ peripheral: CBPeripheralManager, didPublishL2CAPChannel PSM: CBL2CAPPSM, error: (any Error)?) {
-        if let error = error { print(error); return }
-        print("published L2CAP channel")
-        self.psm = PSM
-    }
-
-    // MARK: - Stream Handling
-
-    private func setupStreams(for channel: CBL2CAPChannel) {
-        guard let output = channel.outputStream,
-              let input = channel.inputStream else {
-            print("couldnt create streams")
-            return
-        }
-        self.channelL2CAP = channel
-        self.outputStream = output
-        self.inputStream = input
-        self.outputStream.delegate = self
-        self.inputStream.delegate = self
-        self.inputStream.schedule(in: .main, forMode: .default)
-        self.outputStream.schedule(in: .main, forMode: .default)
-        self.outputStream.open()
-        self.inputStream.open()
-        DispatchQueue.main.async { self.onConnectionOpened?() }
-    }
-
-    func peripheral(_ peripheral: CBPeripheral, didOpen channel: CBL2CAPChannel?, error: (any Error)?) {
-        if let error = error { print(error); return }
-        guard let channel = channel else { print("channel is nil"); return }
-        guard channelL2CAP == nil else { print("channel already open, ignoring"); return }
-        print("opened L2CAP channel (central)")
-        setupStreams(for: channel)
-    }
-
-    func peripheralManager(_ peripheral: CBPeripheralManager, didOpen channel: CBL2CAPChannel?, error: (any Error)?) {
-        if let error = error { print(error); return }
-        guard let channel = channel else { print("channel is nil"); return }
-        guard channelL2CAP == nil else { print("channel already open, ignoring"); return }
-        print("opened L2CAP channel (peripheral)")
-        setupStreams(for: channel)
-    }
-
-    /// Reads incoming bytes from the input stream and appends them to the data buffer.
-    func receiveData() {
-        print("trying to receive data")
-        var buffer = [UInt8](repeating: 0, count: BLEManager.bufferSize)
-        while inputStream.hasBytesAvailable {
-            let bytesReceived = inputStream.read(&buffer, maxLength: BLEManager.bufferSize)
-            if bytesReceived > 0 {
-                self.dataStream.append(contentsOf: buffer.prefix(bytesReceived))
-            }
-        }
-        do {
-            try decodeData()
-        } catch {
-            print("erro decodificando data: \(error)")
-        }
-    }
-
-    /// Decodes the received JSON data stream into a `User` profile.
-    func decodeData() throws {
-        guard dataStream.count >= 4 else { return }
-        let expectedLength = dataStream.withUnsafeBytes {
-            Int(UInt32(bigEndian: $0.load(as: UInt32.self)))
-        }
-        guard dataStream.count >= expectedLength + 4 else {
-            print("aguardando dados: \(dataStream.count)/\(expectedLength + 4) bytes")
-            return
-        }
-        let jsonData = dataStream.subdata(in: 4..<expectedLength + 4)
-        let friendDTO = try JSONDecoder().decode(UserDTO.self, from: jsonData)
-        let friend = User(name: friendDTO.name, profilePicture: friendDTO.profilePicture, id: friendDTO.id)
-        print("data decoded: \(friend.name)")
-        dataStream = Data()
-        DispatchQueue.main.async { self.onFriendFound?(friend) }
-    }
-
-    func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
-        switch eventCode {
-        case .hasBytesAvailable:
-            receiveData()
-        case .openCompleted:
-            if aStream === outputStream && !didSendProfile && outputStream.hasSpaceAvailable {
-                didSendProfile = true
-                try? sendProfile()
-            }
-        case .hasSpaceAvailable:
-            if aStream === outputStream && !didSendProfile {
-                didSendProfile = true
-                try? sendProfile()
-            }
-        case .errorOccurred:
-            print("erro na stream")
-        case .endEncountered:
-            print("stream fechada")
-        default:
-            break
-        }
-    }
-
-    /// Encodes and sends the current user's profile over the output stream to the connected peer.
-    ///
-    /// - Throws: An error if JSON encoding fails.
-    func sendProfile() throws {
-        print("trying to send data")
-        guard outputStream.hasSpaceAvailable else {
-            print("no space available")
-            return
-        }
-        let pictureToSend: Data
-        if let image = UIImage(data: profile.profilePicture),
-           let thumb = image.preparingThumbnail(of: CGSize(width: 64, height: 64)),
-           let compressed = thumb.jpegData(compressionQuality: 0.5) {
-            pictureToSend = compressed
-        } else {
-            pictureToSend = profile.profilePicture
-        }
-        let profileDTO = UserDTO(name: profile.name, profilePicture: pictureToSend, id: profile.id)
-        let jsonData = try JSONEncoder().encode(profileDTO)
-
-        var length = UInt32(jsonData.count).bigEndian
-        var payload = Data(bytes: &length, count: 4)
-        payload.append(jsonData)
-
-        payload.withUnsafeBytes { buffer in
-            guard let pointer = buffer.bindMemory(to: UInt8.self).baseAddress else {
-                print("erro ao criar ponteiro")
-                return
-            }
-            let bytesWritten = self.outputStream.write(pointer, maxLength: payload.count)
-            print(bytesWritten >= 0 ? "dados enviados (\(bytesWritten) bytes)" : "erro ao enviar dados")
-        }
-    }
 }

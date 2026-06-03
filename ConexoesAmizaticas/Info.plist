@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_conn-amiza._tcp</string>
+		<string>_conn-amiza._udp</string>
+	</array>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Sora-Bold.ttf</string>
@@ -14,17 +19,11 @@
 		<string>Sora-Thin.ttf</string>
 		<string>Bolota.ttf</string>
 	</array>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>O Zelu usa Bluetooth para detectar amigos por perto e trocar perfis.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>O Zelu precisa acessar suas fotos para você escolher uma foto de perfil.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
 		<string>bluetooth-central</string>
 		<string>bluetooth-peripheral</string>
 	</array>
-	<key>UIUserInterfaceStyle</key>
-	<string>Light</string>
 </dict>
 </plist>

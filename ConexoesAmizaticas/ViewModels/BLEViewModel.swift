@@ -28,7 +28,8 @@ class BLEViewModel {
     }
 
     private(set) var phase: Phase = .searching
-    private(set) var friend: User?
+    private(set) var foundFriends: [User] = []
+    private(set) var focusedFriend: User?
     private(set) var foundFriend: Bool = false
 
     private(set) var holdProgress: CGFloat = 0
@@ -50,6 +51,7 @@ class BLEViewModel {
     var onConfirmed: (() -> Void)?
 
     private var bleManager: BLEManager?
+    private var multipeerManager: MultipeerManager?
     private var holdTimer: Timer?
     var blNotificationManager: BluetoothNotificationManager
 
@@ -63,13 +65,15 @@ class BLEViewModel {
     /// Boots a fresh `BLEManager` and starts both scanning and advertising.
     func startBLE() {
         let manager = BLEManager(profile: profile)
-        manager.onConnectionOpened = { [weak self] in
-            self?.foundFriend = true
+        let multiManager = MultipeerManager(profile: profile)
+        manager.onFriendFound = { [weak self] id in
+            self?.multipeerManager?.conectar(userID: id)
         }
-        manager.onFriendFound = { [weak self] friend in
-            self?.friend = friend
+        multiManager.onFriendDataReceived = { [weak self] friend in
+            self?.foundFriends.append(friend)
         }
         self.bleManager = manager
+        self.multipeerManager = multiManager
         manager.startBLE()
     }
 
@@ -85,15 +89,15 @@ class BLEViewModel {
     /// Transitions to the `.matched` phase once the friend profile has fully arrived,
     /// and schedules the "search again" affordance to appear after a short delay.
     func tryTransitionToMatched() {
-        guard foundFriend, friend != nil, phase == .searching else { return }
+        guard foundFriend, focusedFriend != nil, phase == .searching else { return }
         showSearchAgainButton = false
         withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
             phase = .matched
         }
-        let targetFriendID = friend?.id
+        let targetFriendID = focusedFriend?.id
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(3))
-            guard phase == .matched, friend?.id == targetFriendID else { return }
+            guard phase == .matched, focusedFriend?.id == targetFriendID else { return }
             withAnimation(.easeOut(duration: 0.4)) {
                 showSearchAgainButton = true
             }
@@ -103,7 +107,7 @@ class BLEViewModel {
     /// Resets the entire screen state so the user can hunt for another nearby peer.
     func searchAgain() {
         foundFriend = false
-        friend = nil
+        focusedFriend = nil
         showSearchAgainButton = false
         canConfirm = false
         showConfirmationBackground = false
@@ -163,7 +167,7 @@ class BLEViewModel {
         holdTimer?.invalidate()
         holdTimer = nil
 
-        if canConfirm, let friend = friend {
+        if canConfirm, let friend = focusedFriend {
             let success = UINotificationFeedbackGenerator()
             success.notificationOccurred(.success)
 
@@ -195,7 +199,7 @@ class BLEViewModel {
 
     /// Returns the saved connection that matches the discovered peer, if any.
     func existingConnection(in connections: [Connection]) -> Connection? {
-        guard let friend = friend else { return nil }
+        guard let friend = focusedFriend else { return nil }
         return connections.first { $0.friend.id == friend.id }
     }
 
@@ -249,7 +253,7 @@ class BLEViewModel {
     #if DEBUG
     /// Test hook that simulates a found peer without going through Bluetooth discovery.
     func simulateMatch(with friend: User) {
-        self.friend = friend
+        self.focusedFriend = friend
         self.foundFriend = true
     }
     #endif

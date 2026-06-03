@@ -295,11 +295,15 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ConexoesAmizaticas/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Zelu;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "O Zelu usa Bluetooth para detectar amigos por perto e trocar perfis.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "o Zelu usa MultipeerConnectivity para transferir dados com amigos por perto.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "O Zelu precisa acessar suas fotos para você escolher uma foto de perfil.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -335,11 +339,15 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ConexoesAmizaticas/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Zelu;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "O Zelu usa Bluetooth para detectar amigos por perto e trocar perfis.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "o Zelu usa MultipeerConnectivity para transferir dados com amigos por perto.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "O Zelu precisa acessar suas fotos para você escolher uma foto de perfil.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
