@@ -71,6 +71,7 @@ class BLEViewModel {
         }
         multiManager.onFriendDataReceived = { [weak self] friend in
             self?.foundFriends.append(friend)
+            if self?.focusedFriend == nil { self?.focusedFriend = friend }
         }
         self.bleManager = manager
         self.multipeerManager = multiManager
@@ -80,6 +81,7 @@ class BLEViewModel {
     /// Tears down active connections and timers. Safe to call multiple times.
     func stopBLE() {
         bleManager?.stopBLE()
+        multipeerManager?.desligar()
         holdTimer?.invalidate()
         holdTimer = nil
     }

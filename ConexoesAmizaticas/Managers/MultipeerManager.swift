@@ -15,10 +15,14 @@ class MultipeerManager: NSObject, MCSessionDelegate {
             do {
                 let data = try encoder.encode(self.profile)
                 print("sending user data!")
-                try session.send(data, toPeers: [], with: .reliable)
+                try session.send(data, toPeers: self.session.connectedPeers, with: .reliable)
                 self.targeIDs.remove(peerID.displayName)
             }
             catch { print(error) }
+        case .connecting:
+            print("conectando...")
+        case .notConnected:
+            print("nao conectou ainda")
         default:
             print("deu errado na troca de estado da MCSession")
         }
@@ -47,7 +51,7 @@ class MultipeerManager: NSObject, MCSessionDelegate {
     
     init(profile: User) {
         self.profile = profile
-        self.myPeerId = MCPeerID(displayName: profile.id.uuidString)
+        self.myPeerId = MCPeerID(displayName: String(profile.id.uuidString.prefix(8)))
         self.session = MCSession(peer: myPeerId, securityIdentity: nil, encryptionPreference: .required)
         super.init()
         self.session.delegate = self
@@ -55,21 +59,37 @@ class MultipeerManager: NSObject, MCSessionDelegate {
     
     /// Essa é a função que o BLE vai chamar
     func conectar(userID: String) {
-        print("conectando com multipeer")
+        guard let userIDInt = Int(userID, radix: 16), let selfIDInt = Int(profile.id.uuidString.prefix(8), radix: 16) else {
+            print("invalid ID passed to multipeerManager")
+            return
+        }
         self.targeIDs.insert(userID)
-        if self.browser == nil || self.advertiser == nil { ligarAntenas() }
-        print("Multipeer ativado. Procurando o usuário \(userID)")
+        if userIDInt > selfIDInt {
+            ligarAdvertiser()
+        }
+        else {
+            ligarBrowser()
+        }
+        print("conectando com multipeer ao usuario \(userID)")
     }
     
     private func ligarAntenas() {
-        self.browser = MCNearbyServiceBrowser(peer: myPeerId, serviceType: serviceType)
-        self.browser?.delegate = self
-        self.browser?.startBrowsingForPeers()
+        
+        print("Multipeer ativado. Procurando usuários...")
+    }
+    
+    func ligarBrowser() {
+        
+            self.browser = MCNearbyServiceBrowser(peer: myPeerId, serviceType: serviceType)
+            self.browser?.delegate = self
+            self.browser?.startBrowsingForPeers()
+    }
+    
+    func ligarAdvertiser() {
         
         self.advertiser = MCNearbyServiceAdvertiser(peer: myPeerId, discoveryInfo: nil, serviceType: serviceType)
         self.advertiser?.delegate = self
         self.advertiser?.startAdvertisingPeer()
-        print("Multipeer ativado. Procurando usuários...")
     }
     
     private func desligarAntenas() {
@@ -79,7 +99,7 @@ class MultipeerManager: NSObject, MCSessionDelegate {
     }
     
     func desligar() {
-        browser?.stopBrowsingForPeers()
+        desligarAntenas()
         session.disconnect()
     }
     
@@ -90,6 +110,7 @@ class MultipeerManager: NSObject, MCSessionDelegate {
 
 extension MultipeerManager: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String : String]?) {
+        print("browser achou usuario")
         if self.targeIDs.contains(peerID.displayName) {
             print("Alvo encontrado via Wi-Fi Direct! Conectando...")
             browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
@@ -103,7 +124,7 @@ extension MultipeerManager: MCNearbyServiceBrowserDelegate {
 
 extension MultipeerManager: MCNearbyServiceAdvertiserDelegate {
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
-        
+        print("advertiser recebeu convite")
         if self.targeIDs.contains(peerID.displayName) {
             print("Convite recebido de \(peerID.displayName) (está na lista). Aceitando...")
             invitationHandler(true, self.session)
