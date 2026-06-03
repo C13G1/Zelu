@@ -15,12 +15,17 @@ import SwiftData
 /// or directs them to the main `InitialView` dashboard on subsequent sessions.
 struct ContentView: View {
     @Query private var users: [User]
-
+    
     var body: some View {
-        if users.isEmpty {
-            OnboardingView()
-        } else {
+        ZStack{
             InitialView()
+            if users.isEmpty {
+                Rectangle()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .opacity(0.9)
+                    .ignoresSafeArea(.all)
+                OnboardingView()
+            }
         }
     }
 }

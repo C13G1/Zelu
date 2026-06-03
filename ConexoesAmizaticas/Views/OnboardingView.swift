@@ -33,7 +33,7 @@ struct OnboardingView: View {
             CreatProfileView()
                 .tag(2)
         }
-        .background(Color(.onboardingBackground))
+        .background(Color(.clear))
         .tabViewStyle(.page)
         .indexViewStyle(.page(backgroundDisplayMode: .never))
         .animation(.easeInOut, value: currentPage)

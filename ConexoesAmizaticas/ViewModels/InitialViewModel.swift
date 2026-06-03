@@ -17,9 +17,9 @@ import SwiftData
 @Observable
 class InitialViewModel {
     private(set) var modelContext           : ModelContext!
-    private(set) var profile                : User = User()
     private(set) var connectionsWithFriends : [Connection] = []
-    
+    var profile                             : User = User()
+
     /// Pulls the primary user and all active connections from local persistence.
     func fetchData() {
         do {
