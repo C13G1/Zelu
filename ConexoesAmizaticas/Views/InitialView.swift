@@ -45,7 +45,7 @@ struct InitialView: View {
                     ToolBar(vm: $vm)
                         .padding(.bottom, width * 2.28)
 
-                    TabBar(viewModel: $vm, user: currentUser)
+                    TabBar(viewModel: $vm, user: vm.profile)
                         .padding(.top, width * 2.15)
                 }
 
@@ -90,6 +90,11 @@ struct InitialView: View {
             scene.onSpiralTapped = {
                 showVacuoView = true
             }
+            
+            vm.profile = currentUser
+        }
+        .onChange(of: users) {
+            vm.profile = currentUser
         }
         .onChange(of: connections, initial: true) { _, newConnections in
             scene.updateConnections(receivedConnections: Set(newConnections.filter { !$0.inVacuo }))
