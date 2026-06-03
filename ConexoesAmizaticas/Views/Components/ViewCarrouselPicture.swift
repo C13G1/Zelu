@@ -23,13 +23,15 @@ struct ViewCarrouselPicture: View {
     let onConfirm: () -> Void
     var width = UIScreen.main.bounds.width
     var height = UIScreen.main.bounds.height
-
+    
+    @State private var showDeleteAlert = false
+    
     var body: some View {
         ZStack {
             Color.black.opacity(0.6)
                 .ignoresSafeArea()
                 .onTapGesture(perform: onCancel)
-
+            
             VStack {
                 ZStack {
                     Circle()
@@ -59,8 +61,8 @@ struct ViewCarrouselPicture: View {
                     }
                     .frame(width: 72, height: 72)
                     .glassEffect()
-
-                    Button(action: onConfirm) {
+                    
+                    Button(action: { showDeleteAlert = true }) {
                         ZStack {
                             Circle().foregroundStyle(confirmButtonColor)
                             Image(systemName: confirmIcon)
@@ -73,6 +75,12 @@ struct ViewCarrouselPicture: View {
                 }
                 .padding(.top, 40)
             }
+        }
+        .alert("Apagar memória?", isPresented: $showDeleteAlert) {
+            Button("Apagar", role: .destructive, action: onConfirm)
+            Button("Cancelar", role: .cancel) { }
+        } message: {
+            Text("Essa foto será removida permanentemente.")
         }
     }
 }
