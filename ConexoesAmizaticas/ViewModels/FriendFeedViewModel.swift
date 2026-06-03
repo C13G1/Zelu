@@ -126,16 +126,23 @@ class FriendFeedViewModel {
     
     // MARK: - Gesture Tracking
     
+    // MARK: - Gesture Tracking
+
     func onDragChanged(value: DragGesture.Value) {
         draggingItem = snappedItem + value.translation.width / 500
     }
-    
+
     func onDragEnded(value: DragGesture.Value) {
-        withAnimation {
-            draggingItem = snappedItem + value.predictedEndTranslation.width / 350
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+            let velocity = value.predictedEndTranslation.width - value.translation.width
+            let sensitivity: Double = 200
+            
+            let delta = (velocity / sensitivity).clamped(to: -1...1)
             
             let postsCount = Double(max(posts.count, 1))
-            draggingItem = round(draggingItem).remainder(dividingBy: postsCount)
+            draggingItem = (snappedItem + delta)
+                .rounded()
+                .remainder(dividingBy: postsCount)
             snappedItem = draggingItem
             
             let count = posts.count
@@ -144,5 +151,11 @@ class FriendFeedViewModel {
                 activeIndex = Int(draggingItem)
             }
         }
+    }
+}
+
+extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }

@@ -67,7 +67,7 @@ class FriendsScene: SKScene {
         spiral.name = "spiral"
         // The Spiral asset is padded with transparency around the visible drawing, so the physics radius
         // must be smaller than half the sprite size to let friend nodes visually touch the artwork.
-        spiral.physicsBody = SKPhysicsBody(circleOfRadius: 42)
+        spiral.physicsBody = SKPhysicsBody(circleOfRadius: 52)
         spiral.physicsBody?.affectedByGravity = false
         spiral.physicsBody?.isDynamic = false
         self.rootNode.addChild(spiral)
