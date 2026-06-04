@@ -39,7 +39,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     
     let serviceID: CBUUID = CBUUID(string: "451A3F17-0062-41E1-82CC-98496CDA05FB")
     let portCharacteristicID: CBUUID = CBUUID(string: "B2C20EFB-B20F-4F0D-B708-4EA408F2C500")
-    let advertisingKey: Int = Int.random(in: 1...100_000_000)
+    /// Random tie-breaker deciding who acts as central vs peripheral. Re-rolled on every `startBLE` so a
+    /// repeated attempt against the same crowd doesn't deadlock on the same role decision twice.
+    var advertisingKey: Int = Int.random(in: 1...100_000_000)
     
     var psm: CBL2CAPPSM!
     var channelL2CAP: CBL2CAPChannel!
@@ -53,12 +55,26 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// as much as the kernel buffer currently holds and returns that count. The remaining bytes must be
     /// flushed on subsequent `.hasSpaceAvailable` events; without this the tail of a larger image was
     /// silently dropped, which is why the picture had to be shrunk to a tiny thumbnail to fit one write.
-    private var outgoingData: Data = Data()
-    private var outgoingOffset: Int = 0
+    private var pendingProfileData: Data = Data()
+    private var sentByteCount: Int = 0
 
     /// The profile of the current user that will be transmitted to peers.
     let profile: User
     private var didSendProfile = false
+
+    /// True once we have committed to a pairing attempt with a discovered peer, so further `didDiscover`
+    /// callbacks in the same cycle are ignored instead of racing a second role decision.
+    private var isPairing = false
+    /// True once a complete friend profile has been received; suppresses any further pairing retries.
+    private var didReceiveFriend = false
+    /// Restarts discovery if a pairing attempt stalls — peer busy with someone else, failed connection,
+    /// or a link that drops before the profile finishes arriving.
+    private var pairingTimeoutTimer: Timer?
+    /// How long to wait for a committed pairing attempt to deliver a profile before abandoning it.
+    private static let pairingTimeoutSeconds: TimeInterval = 8
+    /// Ignore peers weaker than this RSSI so that in a crowd we pair with the closest person, not a
+    /// distant one whose handshake is more likely to be slow or to collide with other pairings.
+    private static let minimumRSSI: Int = -75
 
     init(profile: User) {
         self.profile = profile
@@ -71,8 +87,11 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         stopBLE()
         didSendProfile = false
         dataStream = Data()
-        outgoingData = Data()
-        outgoingOffset = 0
+        pendingProfileData = Data()
+        sentByteCount = 0
+        isPairing = false
+        didReceiveFriend = false
+        advertisingKey = Int.random(in: 1...100_000_000)
         self.centralManager = CBCentralManager(delegate: self, queue: nil)
         self.peripheralManager = CBPeripheralManager(delegate: self, queue: nil)
     }
@@ -80,6 +99,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// Stops all ongoing BLE scanning and advertising activities.
     func stopBLE() {
         print("stop ble")
+        pairingTimeoutTimer?.invalidate()
+        pairingTimeoutTimer = nil
+        isPairing = false
         centralManager?.stopScan()
         if let peripheral = connectedPeripheral {
             peripheral.delegate = nil
@@ -99,6 +121,29 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         psm = nil
     }
 
+    // MARK: - Pairing recovery
+
+    /// Starts a one-shot timer that abandons the current pairing attempt and re-scans if no profile
+    /// arrives within `pairingTimeoutSeconds`.
+    private func startPairingTimeout() {
+        pairingTimeoutTimer?.invalidate()
+        pairingTimeoutTimer = Timer.scheduledTimer(withTimeInterval: BLEManager.pairingTimeoutSeconds, repeats: false) { [weak self] _ in
+            guard let self, !self.didReceiveFriend else { return }
+            self.restartDiscovery(reason: "pairing timeout")
+        }
+    }
+
+    /// Tears down the stalled attempt and starts a fresh scan/advertise cycle, unless a friend was
+    /// already received (in which case the disconnect is just the expected end of a finished exchange).
+    private func restartDiscovery(reason: String) {
+        guard !didReceiveFriend else { return }
+        print("reiniciando descoberta: \(reason)")
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.didReceiveFriend else { return }
+            self.startBLE()
+        }
+    }
+
     // MARK: - CoreBluetooth Delegates
     // (Standard CBCentralManager, CBPeripheralManager, and CBPeripheral delegate methods)
     
@@ -112,8 +157,21 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     }
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi: NSNumber) {
+        // Only commit to one peer per cycle; ignore the stream of repeat discoveries and anything
+        // arriving after we've already paired.
+        guard !isPairing, !didReceiveFriend else { return }
         guard let keyString = advertisementData[CBAdvertisementDataLocalNameKey] as? String,
               let peripheralKey = Int(keyString) else { return }
+
+        // In a crowd, pair with the closest person. 127 is CoreBluetooth's "unknown RSSI" sentinel.
+        let signal = rssi.intValue
+        guard signal != 127, signal >= BLEManager.minimumRSSI else {
+            print("ignorando peer distante (rssi \(signal))")
+            return
+        }
+
+        isPairing = true
+        startPairingTimeout()
 
         // Tie-breaker to decide which device acts as the central and which acts as the peripheral
         if peripheralKey > advertisingKey {
@@ -126,6 +184,16 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             self.connectedPeripheral = peripheral
             centralManager.connect(connectedPeripheral)
         }
+    }
+
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        print("falha ao conectar: \(error?.localizedDescription ?? "nil")")
+        restartDiscovery(reason: "didFailToConnect")
+    }
+
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        print("peripheral desconectou: \(error?.localizedDescription ?? "limpo")")
+        restartDiscovery(reason: "didDisconnectPeripheral")
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
@@ -277,6 +345,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         let friend = User(name: friendDTO.name, profilePicture: friendDTO.profilePicture, id: friendDTO.id)
         print("data decoded: \(friend.name)")
         dataStream = Data()
+        didReceiveFriend = true
+        pairingTimeoutTimer?.invalidate()
+        pairingTimeoutTimer = nil
         DispatchQueue.main.async { self.onFriendFound?(friend) }
     }
 
@@ -295,7 +366,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
                     didSendProfile = true
                     try? sendProfile()
                 } else {
-                    flushOutgoing()
+                    sendPendingProfileData()
                 }
             }
         case .errorOccurred:
@@ -310,7 +381,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// Encodes the current user's profile and queues it for transmission to the connected peer.
     ///
     /// The payload is framed with a 4-byte big-endian length prefix and then streamed out by
-    /// `flushOutgoing()`, which keeps writing the remainder on each `.hasSpaceAvailable` event until the
+    /// `sendPendingProfileData()`, which keeps writing the remainder on each `.hasSpaceAvailable` event until the
     /// whole thing has been sent. This is what lets us transmit a higher-quality picture safely.
     ///
     /// - Throws: An error if JSON encoding fails.
@@ -331,34 +402,34 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         var payload = Data(bytes: &length, count: 4)
         payload.append(jsonData)
 
-        outgoingData = payload
-        outgoingOffset = 0
+        pendingProfileData = payload
+        sentByteCount = 0
         print("queued profile payload (\(payload.count) bytes)")
-        flushOutgoing()
+        sendPendingProfileData()
     }
 
-    /// Writes as many pending bytes of `outgoingData` as the stream currently accepts, advancing
-    /// `outgoingOffset`. Re-invoked on every `.hasSpaceAvailable` event until the payload is fully sent.
-    private func flushOutgoing() {
-        guard let output = outputStream, outgoingOffset < outgoingData.count else { return }
+    /// Writes as many pending bytes of `pendingProfileData` as the stream currently accepts, advancing
+    /// `sentByteCount`. Re-invoked on every `.hasSpaceAvailable` event until the payload is fully sent.
+    private func sendPendingProfileData() {
+        guard let output = outputStream, sentByteCount < pendingProfileData.count else { return }
 
-        while outgoingOffset < outgoingData.count, output.hasSpaceAvailable {
-            let remaining = outgoingData.count - outgoingOffset
-            let written = outgoingData.withUnsafeBytes { raw -> Int in
+        while sentByteCount < pendingProfileData.count, output.hasSpaceAvailable {
+            let remaining = pendingProfileData.count - sentByteCount
+            let written = pendingProfileData.withUnsafeBytes { raw -> Int in
                 guard let base = raw.bindMemory(to: UInt8.self).baseAddress else { return -1 }
-                return output.write(base + outgoingOffset, maxLength: remaining)
+                return output.write(base + sentByteCount, maxLength: remaining)
             }
             guard written > 0 else {
                 print("erro ao enviar dados (\(written))")
                 break
             }
-            outgoingOffset += written
+            sentByteCount += written
         }
 
-        if outgoingOffset >= outgoingData.count {
-            print("profile fully sent (\(outgoingData.count) bytes)")
+        if sentByteCount >= pendingProfileData.count {
+            print("profile fully sent (\(pendingProfileData.count) bytes)")
         } else {
-            print("profile partially sent (\(outgoingOffset)/\(outgoingData.count) bytes), awaiting space")
+            print("profile partially sent (\(sentByteCount)/\(pendingProfileData.count) bytes), awaiting space")
         }
     }
 }
