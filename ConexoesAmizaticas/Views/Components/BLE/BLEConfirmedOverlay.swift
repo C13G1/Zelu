@@ -28,7 +28,9 @@ struct BLEConfirmedOverlay: View {
                 Text(onCooldown ? "Vocês já se\nencontraram hoje" : "Encontro registrado!")
             }
             .font(
-                Font.custom("Bolota", size: 32)
+                // The cooldown copy is longer and wraps to two lines, so it needs a smaller size to
+                // fit the same circle the single-line "Encontro registrado!" was sized for.
+                Font.custom("Bolota", size: onCooldown ? 26 : 32)
                     .weight(.bold)
             )
             .kerning(0.38)
