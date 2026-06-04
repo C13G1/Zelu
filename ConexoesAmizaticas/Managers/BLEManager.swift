@@ -46,7 +46,16 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     var inputStream: InputStream!
     var outputStream: OutputStream!
     var dataStream: Data = Data()
-    
+
+    /// Outgoing profile payload and the number of bytes already written to the stream.
+    ///
+    /// L2CAP `OutputStream.write` is not guaranteed to accept the whole payload in one call — it writes
+    /// as much as the kernel buffer currently holds and returns that count. The remaining bytes must be
+    /// flushed on subsequent `.hasSpaceAvailable` events; without this the tail of a larger image was
+    /// silently dropped, which is why the picture had to be shrunk to a tiny thumbnail to fit one write.
+    private var outgoingData: Data = Data()
+    private var outgoingOffset: Int = 0
+
     /// The profile of the current user that will be transmitted to peers.
     let profile: User
     private var didSendProfile = false
@@ -62,6 +71,8 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         stopBLE()
         didSendProfile = false
         dataStream = Data()
+        outgoingData = Data()
+        outgoingOffset = 0
         self.centralManager = CBCentralManager(delegate: self, queue: nil)
         self.peripheralManager = CBPeripheralManager(delegate: self, queue: nil)
     }
@@ -279,9 +290,13 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
                 try? sendProfile()
             }
         case .hasSpaceAvailable:
-            if aStream === outputStream && !didSendProfile {
-                didSendProfile = true
-                try? sendProfile()
+            if aStream === outputStream {
+                if !didSendProfile {
+                    didSendProfile = true
+                    try? sendProfile()
+                } else {
+                    flushOutgoing()
+                }
             }
         case .errorOccurred:
             print("erro na stream")
@@ -292,19 +307,19 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
-    /// Encodes and sends the current user's profile over the output stream to the connected peer.
+    /// Encodes the current user's profile and queues it for transmission to the connected peer.
+    ///
+    /// The payload is framed with a 4-byte big-endian length prefix and then streamed out by
+    /// `flushOutgoing()`, which keeps writing the remainder on each `.hasSpaceAvailable` event until the
+    /// whole thing has been sent. This is what lets us transmit a higher-quality picture safely.
     ///
     /// - Throws: An error if JSON encoding fails.
     func sendProfile() throws {
         print("trying to send data")
-        guard outputStream.hasSpaceAvailable else {
-            print("no space available")
-            return
-        }
         let pictureToSend: Data
         if let image = UIImage(data: profile.profilePicture),
-           let thumb = image.preparingThumbnail(of: CGSize(width: 64, height: 64)),
-           let compressed = thumb.jpegData(compressionQuality: 0.5) {
+           let thumb = image.preparingThumbnail(of: CGSize(width: 256, height: 256)),
+           let compressed = thumb.jpegData(compressionQuality: 0.7) {
             pictureToSend = compressed
         } else {
             pictureToSend = profile.profilePicture
@@ -316,13 +331,34 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         var payload = Data(bytes: &length, count: 4)
         payload.append(jsonData)
 
-        payload.withUnsafeBytes { buffer in
-            guard let pointer = buffer.bindMemory(to: UInt8.self).baseAddress else {
-                print("erro ao criar ponteiro")
-                return
+        outgoingData = payload
+        outgoingOffset = 0
+        print("queued profile payload (\(payload.count) bytes)")
+        flushOutgoing()
+    }
+
+    /// Writes as many pending bytes of `outgoingData` as the stream currently accepts, advancing
+    /// `outgoingOffset`. Re-invoked on every `.hasSpaceAvailable` event until the payload is fully sent.
+    private func flushOutgoing() {
+        guard let output = outputStream, outgoingOffset < outgoingData.count else { return }
+
+        while outgoingOffset < outgoingData.count, output.hasSpaceAvailable {
+            let remaining = outgoingData.count - outgoingOffset
+            let written = outgoingData.withUnsafeBytes { raw -> Int in
+                guard let base = raw.bindMemory(to: UInt8.self).baseAddress else { return -1 }
+                return output.write(base + outgoingOffset, maxLength: remaining)
             }
-            let bytesWritten = self.outputStream.write(pointer, maxLength: payload.count)
-            print(bytesWritten >= 0 ? "dados enviados (\(bytesWritten) bytes)" : "erro ao enviar dados")
+            guard written > 0 else {
+                print("erro ao enviar dados (\(written))")
+                break
+            }
+            outgoingOffset += written
+        }
+
+        if outgoingOffset >= outgoingData.count {
+            print("profile fully sent (\(outgoingData.count) bytes)")
+        } else {
+            print("profile partially sent (\(outgoingOffset)/\(outgoingData.count) bytes), awaiting space")
         }
     }
 }
