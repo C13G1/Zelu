@@ -94,11 +94,16 @@ struct BLEView: View {
             viewModel.resetSessionState()
             viewModel.onConfirmed = { dismiss() }
             viewModel.refreshBluetoothAccess()
+            // The view model (and its Bluetooth state) is retained across visits, so on a second entry
+            // `isBluetoothReady` is already true and never changes — `onChange` won't fire. Kick off a
+            // fresh search here when access is already granted, otherwise `onChange` handles the first.
+            if viewModel.blNotificationManager.isBluetoothReady {
+                startSearching()
+            }
         }
         .onChange(of: viewModel.blNotificationManager.isBluetoothReady) { _, isReady in
             guard isReady else { return }
-            Aptabase.shared.trackEvent("screen_view", with: ["name": "ble_search"])
-            viewModel.startBLE()
+            startSearching()
         }
         .onDisappear { viewModel.stopBLE() }
         .onChange(of: viewModel.foundFriend) { _, _ in viewModel.tryTransitionToMatched() }
@@ -135,6 +140,13 @@ struct BLEView: View {
     private func openBluetoothSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+
+    /// Logs the screen view and starts a fresh scan/advertise cycle. Triggered both when Bluetooth
+    /// first becomes ready and immediately on entry when access was already granted on a previous visit.
+    private func startSearching() {
+        Aptabase.shared.trackEvent("screen_view", with: ["name": "ble_search"])
+        viewModel.startBLE()
     }
 
     // MARK: - Derived UI state
