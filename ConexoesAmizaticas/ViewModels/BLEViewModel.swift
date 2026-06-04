@@ -38,6 +38,10 @@ class BLEViewModel {
     private(set) var confirmedReveal: CGFloat = 0
     private(set) var showConfirmationBackground: Bool = false
 
+    /// True when the confirmed encounter fell inside the 24h cooldown, so the confirmation overlay
+    /// shows "Vocês já se encontraram hoje" instead of registering a new scoring meeting.
+    private(set) var confirmedOnCooldown: Bool = false
+
     /// Whether the user is currently pressing the screen during the matched phase.
     var isHolding: Bool = false
 
@@ -116,6 +120,7 @@ class BLEViewModel {
         canConfirm = false
         showConfirmationBackground = false
         confirmedReveal = 0
+        confirmedOnCooldown = false
         holdProgress = 0
         isHolding = false
         phase = .searching
@@ -185,6 +190,11 @@ class BLEViewModel {
         holdTimer = nil
 
         if canConfirm, let friend = friend {
+            // Decide the cooldown state up front so the confirmation overlay can show the right copy
+            // the instant it appears (confirmFriend, which scores, only runs ~1.9s later).
+            let existing = existingConnections.first { $0.friend.id == friend.id }
+            confirmedOnCooldown = existing.map { !$0.canRegisterMeeting } ?? false
+
             let success = UINotificationFeedbackGenerator()
             success.notificationOccurred(.success)
 
@@ -236,16 +246,25 @@ class BLEViewModel {
         }
         let connection: Connection
         if let existing = existingConnections.first(where: { $0.friend.id == friend.id }) {
-            existing.lastMet = Date.now
-            existing.metaManager.addOrSubtractScore(10)
+            // Only score and stamp the meeting once the 24h cooldown has elapsed, so repeated
+            // encounters on the same day still confirm visually but cannot level the friendship up.
+            if existing.canRegisterMeeting {
+                existing.lastMet = Date.now
+                existing.metaManager.addOrSubtractScore(10)
+                Aptabase.shared.trackEvent("meeting_registered", with: [
+                    "relationship_state": existing.metaManager.currentRelationshipState.rawValue,
+                    "score": existing.metaManager.score
+                ])
+            } else {
+                Aptabase.shared.trackEvent("meeting_on_cooldown", with: [
+                    "relationship_state": existing.metaManager.currentRelationshipState.rawValue,
+                    "score": existing.metaManager.score
+                ])
+            }
             connection = existing
-            Aptabase.shared.trackEvent("meeting_registered", with: [
-                "relationship_state": existing.metaManager.currentRelationshipState.rawValue,
-                "score": existing.metaManager.score
-            ])
         } else {
             modelContext.insert(friend)
-            let newConnection = Connection(friend: friend)
+            let newConnection = Connection(friend: friend, lastMet: .now)
             modelContext.insert(newConnection)
             connection = newConnection
             Aptabase.shared.trackEvent("friend_added")

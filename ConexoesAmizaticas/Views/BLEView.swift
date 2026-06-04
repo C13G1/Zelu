@@ -77,7 +77,7 @@ struct BLEView: View {
                     }
 
                     if viewModel.phase == .confirmed {
-                        BLEConfirmedOverlay(reveal: viewModel.confirmedReveal)
+                        BLEConfirmedOverlay(reveal: viewModel.confirmedReveal, onCooldown: viewModel.confirmedOnCooldown)
                             .position(x: geo.size.width / 2, y: geo.size.height / 2)
                             .allowsHitTesting(false)
                     }
