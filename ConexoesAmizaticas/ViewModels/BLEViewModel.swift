@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import SwiftData
 import UIKit
+import CoreBluetooth
 import Aptabase
 
 /// Coordinates the proximity-based pairing experience between two nearby users.
@@ -260,6 +261,16 @@ class BLEViewModel {
     
     func requestBluetoothPermission(){
         blNotificationManager.requestBluetoothPermission()
+    }
+
+    /// Re-checks Bluetooth access on screen entry. When access was already decided (authorized or
+    /// denied) it spins up the central manager to observe the live power state and start BLE; when
+    /// it is still undetermined it waits for the user to tap "Autorizar" in the permission overlay.
+    func refreshBluetoothAccess() {
+        blNotificationManager.refreshAuthorization()
+        if blNotificationManager.authorizationState != .notDetermined {
+            blNotificationManager.requestBluetoothPermission()
+        }
     }
     
     func centralManagerDidUpdateState(){

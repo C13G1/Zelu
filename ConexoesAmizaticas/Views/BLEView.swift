@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 import Aptabase
 
 /// The proximity-based discovery and pairing screen.
@@ -70,8 +71,10 @@ struct BLEView: View {
                     .zIndex(1)
                     .compositingGroup()
 
-                    textLayer(in: geo.size)
-                        .allowsHitTesting(viewModel.phase != .holding)
+                    if viewModel.blNotificationManager.accessState == .ready {
+                        textLayer(in: geo.size)
+                            .allowsHitTesting(viewModel.phase != .holding)
+                    }
 
                     if viewModel.phase == .confirmed {
                         BLEConfirmedOverlay(reveal: viewModel.confirmedReveal)
@@ -83,17 +86,14 @@ struct BLEView: View {
                 .contentShape(Rectangle())
                 .gesture(holdGesture)
             }
+
+            bluetoothAccessOverlay
         }
+        .animation(.easeInOut(duration: 0.3), value: viewModel.blNotificationManager.accessState)
         .onAppear {
             viewModel.resetSessionState()
             viewModel.onConfirmed = { dismiss() }
-            if viewModel.blNotificationManager.isBluetoothReady == true {
-                Aptabase.shared.trackEvent("screen_view", with: ["name": "ble_search"])
-                viewModel.startBLE()
-            }
-            else {
-                viewModel.requestBluetoothPermission()
-            }
+            viewModel.refreshBluetoothAccess()
         }
         .onChange(of: viewModel.blNotificationManager.isBluetoothReady) { _, isReady in
             guard isReady else { return }
@@ -105,9 +105,36 @@ struct BLEView: View {
         .onChange(of: viewModel.friend?.id) { _, _ in viewModel.tryTransitionToMatched() }
         .navigationTitle("Adicionar amigo")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(isWhiteMode ? Color.white : Color.bleBackground, for: .navigationBar)
+        .toolbarBackground(toolbarBackground, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(isWhiteMode ? .light : .dark, for: .navigationBar)
+    }
+
+    // MARK: - Bluetooth access overlay
+
+    @ViewBuilder
+    private var bluetoothAccessOverlay: some View {
+        switch viewModel.blNotificationManager.accessState {
+        case .needsPermission:
+            BLEPermissionOverlay(
+                onAuthorize: { viewModel.requestBluetoothPermission() }
+            )
+            .transition(.opacity)
+            .zIndex(10)
+        case .unavailable:
+            BLEDisabledOverlay(
+                onOpenSettings: { openBluetoothSettings() }
+            )
+            .transition(.opacity)
+            .zIndex(10)
+        case .ready:
+            EmptyView()
+        }
+    }
+
+    private func openBluetoothSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     // MARK: - Derived UI state
@@ -124,6 +151,16 @@ struct BLEView: View {
         isWhiteMode ? Color.white : Color.bleBackground
     }
 
+    /// While a Bluetooth overlay dims the screen, the navigation bar must match that dimmed tone
+    /// (`bleBackground` darkened by the overlay's black 85% scrim) instead of the full-brightness
+    /// `bleBackground`, otherwise the bar reads as a lighter band above the overlay.
+    private var toolbarBackground: Color {
+        if viewModel.blNotificationManager.accessState != .ready {
+            return Color.bleOverlayBackground
+        }
+        return isWhiteMode ? Color.white : Color.bleBackground
+    }
+
     // MARK: - Layout helpers
 
     private func topAvatarCenterY(in size: CGSize) -> CGFloat {
@@ -131,7 +168,7 @@ struct BLEView: View {
     }
 
     private func bottomAvatarCenterY(in size: CGSize) -> CGFloat {
-        min(size.height - 140, size.height * 0.82)
+        size.height - 39 - avatarDiameter / 2
     }
 
     // MARK: - Text / button layer
