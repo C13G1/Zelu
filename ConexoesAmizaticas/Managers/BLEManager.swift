@@ -61,9 +61,6 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// The profile of the current user that will be transmitted to peers.
     let profile: User
     private var didSendProfile = false
-    /// True once every byte of our framed profile payload has been handed to the output stream.
-    /// Gates teardown so we never close the channel before the peer has received our data.
-    private var didSendProfileFully = false
 
     /// True once we have committed to a pairing attempt with a discovered peer, so further `didDiscover`
     /// callbacks in the same cycle are ignored instead of racing a second role decision.
@@ -84,9 +81,6 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     private static let ackByte: UInt8 = 0x06
     /// True once the peer's ACK arrived, i.e. the peer confirmed it received OUR full profile.
     private var didReceiveAck = false
-    /// IDs of peers already matched during this manager's lifetime. Kept across `startBLE` so the
-    /// rescan timer doesn't re-pair with someone already met (the same profile showing up repeatedly).
-    private var matchedFriendIDs: Set<UUID> = []
     /// Restarts discovery if a pairing attempt stalls — peer busy with someone else, failed connection,
     /// or a link that drops before the profile finishes arriving.
     private var pairingTimeoutTimer: Timer?
@@ -106,7 +100,6 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         print("start ble")
         stopBLE()
         didSendProfile = false
-        didSendProfileFully = false
         dataStream = Data()
         pendingProfileData = Data()
         sentByteCount = 0
@@ -176,34 +169,26 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
-    /// Closes the channel and stops advertising/scanning once both profiles have crossed the link.
+    /// Closes the channel and goes silent once the exchange is confirmed in both directions.
     ///
-    /// In a crowd the biggest source of "stream fechada" errors is a finished peer that is still
-    /// discoverable: a third device starts connecting to someone who already matched. Tearing the
-    /// connection down — and going silent — the moment the exchange completes removes that target.
-    /// `didReceiveFriend` stays true so none of the disconnect callbacks restart discovery.
+    /// Reaching here means we have the peer's profile (`didReceiveFriend`) and the peer ACKed ours
+    /// (`didReceiveAck`) — so both sides already have each other's data and matched simultaneously.
+    /// Our own ACK was sent before the peer's ACK could arrive, so the channel is safe to close now
+    /// with nothing left in flight. `didReceiveFriend` stays true so the disconnect callbacks don't
+    /// restart discovery.
     private func finishExchangeIfComplete() {
-        // Close only once both directions are confirmed: we have the peer's profile (didReceiveFriend)
-        // and the peer confirmed it has ours (didReceiveAck).
         guard didReceiveFriend, didReceiveAck, !didFinishExchange else { return }
         didFinishExchange = true
         print("troca completa, fechando channel")
         pairingTimeoutTimer?.invalidate()
         pairingTimeoutTimer = nil
-        // Go invisible immediately so no new peer connects to a finished device.
         centralManager?.stopScan()
         peripheralManager?.stopAdvertising()
-        // Delay the real teardown: our last bytes may still be in flight to the peer, and an immediate
-        // cancel drops the link before they land — leaving the peer without our profile (one-sided
-        // match). The grace lets the kernel flush the final write across the L2CAP channel.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            guard let self else { return }
-            self.closeStreams()
-            if let peripheral = self.connectedPeripheral {
-                peripheral.delegate = nil
-                self.centralManager?.cancelPeripheralConnection(peripheral)
-                self.connectedPeripheral = nil
-            }
+        closeStreams()
+        if let peripheral = connectedPeripheral {
+            peripheral.delegate = nil
+            centralManager?.cancelPeripheralConnection(peripheral)
+            connectedPeripheral = nil
         }
     }
 
@@ -345,14 +330,18 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         print("updated value")
         if let error = error {
             print(error)
-            // Peer may not have finished publishing its L2CAP channel yet (CBATTError Code=10).
-            // Retry the read a few times before giving up to the pairing timeout.
-            if characteristic.uuid == portCharacteristicID, psmReadRetries < BLEManager.maxPSMReadRetries {
+            // Transient read failure: peer hadn't finished publishing its L2CAP channel (Code=10), or a
+            // cache pointed at a characteristic the peer no longer serves (Code=6). Retry a
+            // few times; if it keeps failing, re-roll immediately instead of burning the pairing timeout.
+            guard characteristic.uuid == portCharacteristicID else { return }
+            if psmReadRetries < BLEManager.maxPSMReadRetries {
                 psmReadRetries += 1
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                     guard let self, !self.didReceiveFriend else { return }
                     self.connectedPeripheral?.readValue(for: characteristic)
                 }
+            } else {
+                restartDiscovery(reason: "psm read failed")
             }
             return
         }
@@ -450,15 +439,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             let friend = User(name: friendDTO.name, profilePicture: friendDTO.profilePicture, id: friendDTO.id)
             // Drop the consumed profile frame; keep any trailing bytes (the peer's ACK may already be here).
             dataStream.removeSubrange(0..<expectedLength + 4)
-
-            // Rescan timer re-found someone already met — abandon and look for a new person.
-            if matchedFriendIDs.contains(friend.id) {
-                print("perfil repetido (\(friend.name)), procurando outro")
-                restartDiscovery(reason: "duplicate match")
-                return
-            }
             print("data decoded: \(friend.name)")
-            matchedFriendIDs.insert(friend.id)
             didReceiveFriend = true
             pairingTimeoutTimer?.invalidate()
             pairingTimeoutTimer = nil
@@ -564,11 +545,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
 
         if sentByteCount >= pendingProfileData.count {
-            print("profile fully sent (\(pendingProfileData.count) bytes)")
-            didSendProfileFully = true
-            finishExchangeIfComplete()
+            print("payload fully sent (\(pendingProfileData.count) bytes)")
         } else {
-            print("profile partially sent (\(sentByteCount)/\(pendingProfileData.count) bytes), awaiting space")
+            print("payload partially sent (\(sentByteCount)/\(pendingProfileData.count) bytes), awaiting space")
         }
     }
 }
