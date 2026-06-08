@@ -77,6 +77,16 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// failure (peer hadn't finished publishing its L2CAP channel yet).
     private var psmReadRetries = 0
     private static let maxPSMReadRetries = 5
+
+    /// Single-byte acknowledgement sent right after a peer's full profile is received. Lets each side
+    /// confirm the other got its data before tearing down, so no one closes the channel mid-transfer
+    /// (the cause of one-sided "achou / não achou" matches).
+    private static let ackByte: UInt8 = 0x06
+    /// True once the peer's ACK arrived, i.e. the peer confirmed it received OUR full profile.
+    private var didReceiveAck = false
+    /// IDs of peers already matched during this manager's lifetime. Kept across `startBLE` so the
+    /// rescan timer doesn't re-pair with someone already met (the same profile showing up repeatedly).
+    private var matchedFriendIDs: Set<UUID> = []
     /// Restarts discovery if a pairing attempt stalls — peer busy with someone else, failed connection,
     /// or a link that drops before the profile finishes arriving.
     private var pairingTimeoutTimer: Timer?
@@ -102,6 +112,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         sentByteCount = 0
         isPairing = false
         didReceiveFriend = false
+        didReceiveAck = false
         didFinishExchange = false
         psmReadRetries = 0
         advertisingKey = Int.random(in: 1...100_000_000)
@@ -172,7 +183,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// connection down — and going silent — the moment the exchange completes removes that target.
     /// `didReceiveFriend` stays true so none of the disconnect callbacks restart discovery.
     private func finishExchangeIfComplete() {
-        guard didReceiveFriend, didSendProfileFully, !didFinishExchange else { return }
+        // Close only once both directions are confirmed: we have the peer's profile (didReceiveFriend)
+        // and the peer confirmed it has ours (didReceiveAck).
+        guard didReceiveFriend, didReceiveAck, !didFinishExchange else { return }
         didFinishExchange = true
         print("troca completa, fechando channel")
         pairingTimeoutTimer?.invalidate()
@@ -420,26 +433,53 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
-    /// Decodes the received JSON data stream into a `User` profile.
+    /// Decodes the received stream: first the length-prefixed `User` profile frame, then a trailing
+    /// single ACK byte confirming the peer received our profile.
     func decodeData() throws {
-        guard dataStream.count >= 4 else { return }
-        let expectedLength = dataStream.withUnsafeBytes {
-            Int(UInt32(bigEndian: $0.load(as: UInt32.self)))
+        if !didReceiveFriend {
+            guard dataStream.count >= 4 else { return }
+            let expectedLength = dataStream.withUnsafeBytes {
+                Int(UInt32(bigEndian: $0.load(as: UInt32.self)))
+            }
+            guard dataStream.count >= expectedLength + 4 else {
+                print("aguardando dados: \(dataStream.count)/\(expectedLength + 4) bytes")
+                return
+            }
+            let jsonData = dataStream.subdata(in: 4..<expectedLength + 4)
+            let friendDTO = try JSONDecoder().decode(UserDTO.self, from: jsonData)
+            let friend = User(name: friendDTO.name, profilePicture: friendDTO.profilePicture, id: friendDTO.id)
+            // Drop the consumed profile frame; keep any trailing bytes (the peer's ACK may already be here).
+            dataStream.removeSubrange(0..<expectedLength + 4)
+
+            // Rescan timer re-found someone already met — abandon and look for a new person.
+            if matchedFriendIDs.contains(friend.id) {
+                print("perfil repetido (\(friend.name)), procurando outro")
+                restartDiscovery(reason: "duplicate match")
+                return
+            }
+            print("data decoded: \(friend.name)")
+            matchedFriendIDs.insert(friend.id)
+            didReceiveFriend = true
+            pairingTimeoutTimer?.invalidate()
+            pairingTimeoutTimer = nil
+            enqueueAck()   // tell the peer we received their full profile
+            DispatchQueue.main.async { self.onFriendFound?(friend) }
         }
-        guard dataStream.count >= expectedLength + 4 else {
-            print("aguardando dados: \(dataStream.count)/\(expectedLength + 4) bytes")
-            return
+        // A trailing ACK byte means the peer confirmed receipt of OUR profile. Only then is it safe to
+        // tear down — guarantees neither side closes the channel before both have the data.
+        if didReceiveFriend, !didReceiveAck, dataStream.contains(BLEManager.ackByte) {
+            dataStream = Data()
+            didReceiveAck = true
+            print("ack recebido")
+            finishExchangeIfComplete()
         }
-        let jsonData = dataStream.subdata(in: 4..<expectedLength + 4)
-        let friendDTO = try JSONDecoder().decode(UserDTO.self, from: jsonData)
-        let friend = User(name: friendDTO.name, profilePicture: friendDTO.profilePicture, id: friendDTO.id)
-        print("data decoded: \(friend.name)")
-        dataStream = Data()
-        didReceiveFriend = true
-        pairingTimeoutTimer?.invalidate()
-        pairingTimeoutTimer = nil
-        finishExchangeIfComplete()
-        DispatchQueue.main.async { self.onFriendFound?(friend) }
+    }
+
+    /// Appends the ACK byte to the outgoing queue and flushes it. If the profile is still streaming the
+    /// ACK rides out right after it; if already sent, this resumes the write with just the ACK.
+    private func enqueueAck() {
+        pendingProfileData.append(BLEManager.ackByte)
+        sendPendingProfileData()
     }
 
     func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
