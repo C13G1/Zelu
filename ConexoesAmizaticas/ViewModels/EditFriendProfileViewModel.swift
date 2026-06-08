@@ -25,40 +25,41 @@ class EditFriendProfileViewModel {
     let characterLimit: Int = 10
 
     let connection: Connection
+    private let modelContext: ModelContext
 
-    init(connection: Connection) {
+    init(connection: Connection, modelContext: ModelContext) {
         self.connection = connection
         self.name = connection.friend.name
         self.profileImageData = connection.friend.profilePicture
+        self.modelContext = modelContext
     }
 
-    /// Returns `true` while the name field holds at least one non-whitespace character.
-    var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    /// Trims `name` down to `characterLimit` whenever the user types past the limit.
-    func enforceCharacterLimit() {
+//    /// Persists name and photo back to the friend, saves the context and broadcasts the update.
+//    func saveChanges(modelContext: ModelContext) {
+//        let trimmed = name.trimmingCharacters(in: .whitespaces)
+//        connection.friend.editName(trimmed)
+//        if let data = profileImageData {
+//            connection.friend.editProfileImageData(data)
+//        }
+//        try? modelContext.save()
+//        NotificationCenter.default.post(name: .friendProfileUpdated, object: nil)
+//    }
+    
+    /// Saves the typed name to the profile or clamps it back to the character limit when needed.
+    func commitName() {
         if name.count > characterLimit {
             name = String(name.prefix(characterLimit))
+            return
         }
+        connection.friend.editName(name)
+        try? modelContext.save()
     }
-
-    /// Loads the newly picked photo data asynchronously into the local buffer.
-    func loadSelectedPhoto() async {
+    
+    /// Loads the newly picked photo asynchronously and persists it on the profile.
+    func commitSelectedPhoto() async {
         guard let item = selectedPhoto,
               let data = try? await item.loadTransferable(type: Data.self) else { return }
-        profileImageData = data
-    }
-
-    /// Persists name and photo back to the friend, saves the context and broadcasts the update.
-    func saveChanges(modelContext: ModelContext) {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        connection.friend.editName(trimmed)
-        if let data = profileImageData {
-            connection.friend.editProfileImageData(data)
-        }
+        connection.friend.editProfileImageData(data)
         try? modelContext.save()
-        NotificationCenter.default.post(name: .friendProfileUpdated, object: nil)
     }
 }
