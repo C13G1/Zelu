@@ -60,27 +60,26 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
 
     /// The profile of the current user that will be transmitted to peers.
     let profile: User
-    private var didSendProfile = false
+    /// True once our profile has been added to the outgoing queue (so we queue it only once).
+    private var didQueueProfile = false
+    /// True once our ACK byte has been added to the outgoing queue.
+    private var didQueueAck = false
 
-    /// True once we have committed to a pairing attempt with a discovered peer, so further `didDiscover`
-    /// callbacks in the same cycle are ignored instead of racing a second role decision.
+    /// True once we've committed to a peer this cycle, so extra `didDiscover` callbacks are ignored.
     private var isPairing = false
-    /// True once a complete friend profile has been received; suppresses any further pairing retries.
+    /// True once the peer's full profile arrived. Also stops any restart, since the exchange is done.
     private var didReceiveFriend = false
-    /// True once the exchange-complete teardown has been scheduled; keeps `finishExchangeIfComplete`
-    /// idempotent (it can be reached from both the send-finished and receive-finished paths).
+    /// True once the peer's ACK arrived — they confirmed they received OUR profile.
+    private var didReceiveAck = false
+    /// Guards `finishExchangeIfComplete` so the teardown runs only once.
     private var didFinishExchange = false
-    /// Number of times the central has retried reading the PSM characteristic after a transient
-    /// failure (peer hadn't finished publishing its L2CAP channel yet).
+    /// Retry counter for reading the peer's PSM characteristic when it isn't ready yet.
     private var psmReadRetries = 0
     private static let maxPSMReadRetries = 5
 
-    /// Single-byte acknowledgement sent right after a peer's full profile is received. Lets each side
-    /// confirm the other got its data before tearing down, so no one closes the channel mid-transfer
-    /// (the cause of one-sided "achou / não achou" matches).
+    /// One-byte acknowledgement. After receiving a peer's full profile we send this so they know we
+    /// got it; we close only after receiving theirs. Guarantees both sides have the data before close.
     private static let ackByte: UInt8 = 0x06
-    /// True once the peer's ACK arrived, i.e. the peer confirmed it received OUR full profile.
-    private var didReceiveAck = false
     /// Restarts discovery if a pairing attempt stalls — peer busy with someone else, failed connection,
     /// or a link that drops before the profile finishes arriving.
     private var pairingTimeoutTimer: Timer?
@@ -95,45 +94,77 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         super.init()
     }
 
-    /// Initializes the Central and Peripheral managers and starts scanning/advertising.
+    /// Starts (or restarts) scanning and advertising. The managers are created once and reused — we
+    /// never recreate them per attempt, which used to churn the bluetoothd XPC connection and crash.
     func startBLE() {
         print("start ble")
-        stopBLE()
-        didSendProfile = false
+        resetSession()
+        if centralManager == nil {
+            centralManager = CBCentralManager(delegate: self, queue: nil)
+        }
+        if peripheralManager == nil {
+            peripheralManager = CBPeripheralManager(delegate: self, queue: nil)
+        }
+        // On the first run the managers aren't powered on yet, so the state callbacks start the work.
+        // On a restart they're already on, so kick off here.
+        beginScanning()
+        beginAdvertising()
+    }
+
+    /// Fully stops BLE and releases the managers. Used when leaving the screen.
+    func stopBLE() {
+        print("stop ble")
+        resetSession()
+        centralManager?.stopScan()
+        centralManager?.delegate = nil
+        centralManager = nil
+        peripheralManager?.stopAdvertising()
+        peripheralManager?.delegate = nil
+        peripheralManager = nil
+        psm = nil
+    }
+
+    /// Clears all per-attempt state and tears down the current link, without touching the managers.
+    private func resetSession() {
+        pairingTimeoutTimer?.invalidate()
+        pairingTimeoutTimer = nil
+        closeStreams()
+        if let peripheral = connectedPeripheral {
+            peripheral.delegate = nil
+            centralManager?.cancelPeripheralConnection(peripheral)
+            connectedPeripheral = nil
+        }
         dataStream = Data()
         pendingProfileData = Data()
         sentByteCount = 0
+        didQueueProfile = false
+        didQueueAck = false
         isPairing = false
         didReceiveFriend = false
         didReceiveAck = false
         didFinishExchange = false
         psmReadRetries = 0
         advertisingKey = Int.random(in: 1...100_000_000)
-        self.centralManager = CBCentralManager(delegate: self, queue: nil)
-        self.peripheralManager = CBPeripheralManager(delegate: self, queue: nil)
     }
 
-    /// Stops all ongoing BLE scanning and advertising activities.
-    func stopBLE() {
-        print("stop ble")
-        pairingTimeoutTimer?.invalidate()
-        pairingTimeoutTimer = nil
-        isPairing = false
-        centralManager?.stopScan()
-        if let peripheral = connectedPeripheral {
-            peripheral.delegate = nil
-            centralManager?.cancelPeripheralConnection(peripheral)
-        }
-        centralManager?.delegate = nil
-        peripheralManager?.stopAdvertising()
-        peripheralManager?.delegate = nil
-        closeStreams()
-        connectedPeripheral = nil
-        psm = nil
+    /// Starts scanning for peers, if the central is ready.
+    private func beginScanning() {
+        guard centralManager?.state == .poweredOn else { return }
+        centralManager.scanForPeripherals(withServices: [serviceID], options: nil)
     }
 
-    /// Closes and unschedules the L2CAP streams and drops the channel reference. Detaches the stream
-    /// delegate first so a close we initiated doesn't bounce back as an `.endEncountered` event.
+    /// (Re)starts advertising with the current key, if the peripheral is ready.
+    private func beginAdvertising() {
+        guard peripheralManager?.state == .poweredOn else { return }
+        peripheralManager.stopAdvertising()
+        peripheralManager.startAdvertising([
+            CBAdvertisementDataServiceUUIDsKey: [serviceID],
+            CBAdvertisementDataLocalNameKey: "\(advertisingKey)"
+        ])
+    }
+
+    /// Closes and unschedules the L2CAP streams. Detaches the delegate first so our own close doesn't
+    /// come back as an `.endEncountered` event.
     private func closeStreams() {
         inputStream?.delegate = nil
         outputStream?.delegate = nil
@@ -158,15 +189,14 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
-    /// Tears down the stalled attempt and starts a fresh scan/advertise cycle, unless a friend was
-    /// already received (in which case the disconnect is just the expected end of a finished exchange).
+    /// Drops the stalled attempt and scans again, reusing the existing managers. Skipped if a friend
+    /// was already received (then the disconnect is just the normal end of a finished exchange).
     private func restartDiscovery(reason: String) {
         guard !didReceiveFriend else { return }
         print("reiniciando descoberta: \(reason)")
-        DispatchQueue.main.async { [weak self] in
-            guard let self, !self.didReceiveFriend else { return }
-            self.startBLE()
-        }
+        resetSession()
+        beginScanning()
+        beginAdvertising()
     }
 
     /// Closes the channel and goes silent once the exchange is confirmed in both directions.
@@ -207,7 +237,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn {
             print("central power on")
-            centralManager.scanForPeripherals(withServices: [serviceID], options: nil)
+            beginScanning()
         } else {
             print("central state: \(central.state.rawValue)")
         }
@@ -300,14 +330,10 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             let service = CBMutableService(type: serviceID, primary: true)
             service.characteristics = [characteristic]
             peripheral.add(service)
-            // Publish the L2CAP channel up-front so the PSM is ready before any central reads the
-            // characteristic. Publishing it lazily in didDiscover raced the read and returned
-            // CBATTError Code=10 (attributeNotFound) when the read won.
+            // Publish the L2CAP channel up-front so the PSM is ready before any central reads it.
+            // Doing it lazily raced the read and returned CBATTError Code=10 (attributeNotFound).
             peripheral.publishL2CAPChannel(withEncryption: false)
-            peripheral.startAdvertising([
-                CBAdvertisementDataServiceUUIDsKey: [serviceID],
-                CBAdvertisementDataLocalNameKey: "\(advertisingKey)"
-            ])
+            beginAdvertising()
         } else {
             print("peripheral state: \(peripheral.state.rawValue)")
         }
@@ -351,8 +377,10 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             print("psm data inválido")
             return
         }
-        self.psm = data.withUnsafeBytes { $0.load(as: CBL2CAPPSM.self) }
-        peripheral.openL2CAPChannel(self.psm)
+        // Open the peer's channel with their PSM. Keep `self.psm` (our own published PSM) untouched so
+        // a future read of our characteristic still serves the right value.
+        let peerPSM = data.withUnsafeBytes { $0.load(as: CBL2CAPPSM.self) }
+        peripheral.openL2CAPChannel(peerPSM)
     }
 
     func peripheralManager(_ peripheral: CBPeripheralManager, didPublishL2CAPChannel PSM: CBL2CAPPSM, error: (any Error)?) {
@@ -381,7 +409,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         self.outputStream.schedule(in: .main, forMode: .default)
         self.outputStream.open()
         self.inputStream.open()
-        DispatchQueue.main.async { self.onConnectionOpened?() }
+        onConnectionOpened?()
     }
 
     func peripheral(_ peripheral: CBPeripheral, didOpen channel: CBL2CAPChannel?, error: (any Error)?) {
@@ -443,11 +471,11 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             didReceiveFriend = true
             pairingTimeoutTimer?.invalidate()
             pairingTimeoutTimer = nil
-            enqueueAck()   // tell the peer we received their full profile
-            DispatchQueue.main.async { self.onFriendFound?(friend) }
+            queueAck()   // tell the peer we received their full profile
+            onFriendFound?(friend)
         }
-        // A trailing ACK byte means the peer confirmed receipt of OUR profile. Only then is it safe to
-        // tear down — guarantees neither side closes the channel before both have the data.
+        // A trailing ACK byte means the peer received OUR profile. Now both sides have the data, so
+        // it's safe to close.
         if didReceiveFriend, !didReceiveAck, dataStream.contains(BLEManager.ackByte) {
             dataStream = Data()
             didReceiveAck = true
@@ -456,11 +484,14 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
-    /// Appends the ACK byte to the outgoing queue and flushes it. If the profile is still streaming the
-    /// ACK rides out right after it; if already sent, this resumes the write with just the ACK.
-    private func enqueueAck() {
+    /// Queues our ACK byte. Always queues our profile first, so on the wire the peer reads
+    /// [profile][ack] in order and never mistakes the ACK byte for the profile's length prefix.
+    private func queueAck() {
+        queueProfile()
+        guard !didQueueAck else { return }
+        didQueueAck = true
         pendingProfileData.append(BLEManager.ackByte)
-        sendPendingProfileData()
+        flushOutgoing()
     }
 
     func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
@@ -468,18 +499,11 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         case .hasBytesAvailable:
             receiveData()
         case .openCompleted:
-            if aStream === outputStream && !didSendProfile && outputStream.hasSpaceAvailable {
-                didSendProfile = true
-                try? sendProfile()
-            }
+            if aStream === outputStream { queueProfile() }
         case .hasSpaceAvailable:
             if aStream === outputStream {
-                if !didSendProfile {
-                    didSendProfile = true
-                    try? sendProfile()
-                } else {
-                    sendPendingProfileData()
-                }
+                queueProfile()
+                flushOutgoing()
             }
         case .errorOccurred:
             print("erro na stream: \(aStream.streamError?.localizedDescription ?? "nil")")
@@ -496,15 +520,11 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
-    /// Encodes the current user's profile and queues it for transmission to the connected peer.
-    ///
-    /// The payload is framed with a 4-byte big-endian length prefix and then streamed out by
-    /// `sendPendingProfileData()`, which keeps writing the remainder on each `.hasSpaceAvailable` event until the
-    /// whole thing has been sent. This is what lets us transmit a higher-quality picture safely.
-    ///
-    /// - Throws: An error if JSON encoding fails.
-    func sendProfile() throws {
-        print("trying to send data")
+    /// Adds our profile to the outgoing queue exactly once, framed with a 4-byte big-endian length
+    /// prefix. The bytes are streamed out by `flushOutgoing()` across multiple `.hasSpaceAvailable`
+    /// events, so a full-size picture can be sent safely. Encoding failure is ignored (profile stays unsent).
+    private func queueProfile() {
+        guard !didQueueProfile else { return }
         let pictureToSend: Data
         if let image = UIImage(data: profile.profilePicture),
            let thumb = image.preparingThumbnail(of: CGSize(width: 256, height: 256)),
@@ -514,21 +534,19 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             pictureToSend = profile.profilePicture
         }
         let profileDTO = UserDTO(name: profile.name, profilePicture: pictureToSend, id: profile.id)
-        let jsonData = try JSONEncoder().encode(profileDTO)
+        guard let jsonData = try? JSONEncoder().encode(profileDTO) else { return }
 
+        didQueueProfile = true
         var length = UInt32(jsonData.count).bigEndian
-        var payload = Data(bytes: &length, count: 4)
-        payload.append(jsonData)
-
-        pendingProfileData = payload
-        sentByteCount = 0
-        print("queued profile payload (\(payload.count) bytes)")
-        sendPendingProfileData()
+        pendingProfileData.append(Data(bytes: &length, count: 4))
+        pendingProfileData.append(jsonData)
+        print("queued profile payload (\(pendingProfileData.count) bytes)")
+        flushOutgoing()
     }
 
-    /// Writes as many pending bytes of `pendingProfileData` as the stream currently accepts, advancing
-    /// `sentByteCount`. Re-invoked on every `.hasSpaceAvailable` event until the payload is fully sent.
-    private func sendPendingProfileData() {
+    /// Writes as many queued bytes as the stream currently accepts, advancing `sentByteCount`.
+    /// Re-invoked on every `.hasSpaceAvailable` event until the queue is fully drained.
+    private func flushOutgoing() {
         guard let output = outputStream, sentByteCount < pendingProfileData.count else { return }
 
         while sentByteCount < pendingProfileData.count, output.hasSpaceAvailable {
