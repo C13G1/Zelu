@@ -61,6 +61,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// The profile of the current user that will be transmitted to peers.
     let profile: User
     private var didSendProfile = false
+    /// True once every byte of our framed profile payload has been handed to the output stream.
+    /// Gates teardown so we never close the channel before the peer has received our data.
+    private var didSendProfileFully = false
 
     /// True once we have committed to a pairing attempt with a discovered peer, so further `didDiscover`
     /// callbacks in the same cycle are ignored instead of racing a second role decision.
@@ -86,6 +89,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         print("start ble")
         stopBLE()
         didSendProfile = false
+        didSendProfileFully = false
         dataStream = Data()
         pendingProfileData = Data()
         sentByteCount = 0
@@ -110,6 +114,16 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         centralManager?.delegate = nil
         peripheralManager?.stopAdvertising()
         peripheralManager?.delegate = nil
+        closeStreams()
+        connectedPeripheral = nil
+        psm = nil
+    }
+
+    /// Closes and unschedules the L2CAP streams and drops the channel reference. Detaches the stream
+    /// delegate first so a close we initiated doesn't bounce back as an `.endEncountered` event.
+    private func closeStreams() {
+        inputStream?.delegate = nil
+        outputStream?.delegate = nil
         inputStream?.close()
         outputStream?.close()
         inputStream?.remove(from: .main, forMode: .default)
@@ -117,8 +131,6 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         inputStream = nil
         outputStream = nil
         channelL2CAP = nil
-        connectedPeripheral = nil
-        psm = nil
     }
 
     // MARK: - Pairing recovery
@@ -142,6 +154,36 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             guard let self, !self.didReceiveFriend else { return }
             self.startBLE()
         }
+    }
+
+    /// Closes the channel and stops advertising/scanning once both profiles have crossed the link.
+    ///
+    /// In a crowd the biggest source of "stream fechada" errors is a finished peer that is still
+    /// discoverable: a third device starts connecting to someone who already matched. Tearing the
+    /// connection down — and going silent — the moment the exchange completes removes that target.
+    /// `didReceiveFriend` stays true so none of the disconnect callbacks restart discovery.
+    private func finishExchangeIfComplete() {
+        guard didReceiveFriend, didSendProfileFully else { return }
+        print("troca completa, fechando channel")
+        pairingTimeoutTimer?.invalidate()
+        pairingTimeoutTimer = nil
+        centralManager?.stopScan()
+        peripheralManager?.stopAdvertising()
+        closeStreams()
+        if let peripheral = connectedPeripheral {
+            peripheral.delegate = nil
+            centralManager?.cancelPeripheralConnection(peripheral)
+            connectedPeripheral = nil
+        }
+    }
+
+    /// Reacts to a stream that closed or errored. If the exchange already finished this is the
+    /// expected end of a completed handshake and is ignored; otherwise the link dropped mid-pairing
+    /// (peer busy with someone else, etc.) so we re-scan for a fresh peer.
+    private func handleStreamFailure(reason: String) {
+        if didReceiveFriend { return }
+        closeStreams()
+        restartDiscovery(reason: reason)
     }
 
     // MARK: - CoreBluetooth Delegates
@@ -200,6 +242,12 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         print("central connected")
         peripheral.delegate = self
         peripheral.discoverServices([serviceID])
+    }
+
+    /// Implemented only to silence CoreBluetooth's "delegate does not implement
+    /// -[peripheral:didModifyServices:]" warning. Our service set is static, so nothing to do.
+    func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
+        print("peripheral modificou serviços: \(invalidatedServices.count)")
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
@@ -285,6 +333,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             print("couldnt create streams")
             return
         }
+        // Committed to this peer — go silent so no one else in a crowd connects mid-exchange.
+        centralManager?.stopScan()
+        peripheralManager?.stopAdvertising()
         self.channelL2CAP = channel
         self.outputStream = output
         self.inputStream = input
@@ -300,7 +351,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     func peripheral(_ peripheral: CBPeripheral, didOpen channel: CBL2CAPChannel?, error: (any Error)?) {
         if let error = error { print(error); return }
         guard let channel = channel else { print("channel is nil"); return }
-        guard channelL2CAP == nil else { print("channel already open, ignoring"); return }
+        // Already paired with someone this cycle — reject extra channels so a second peer can't
+        // overwrite the in-flight streams. Cleared by stopBLE/finishExchangeIfComplete.
+        guard channelL2CAP == nil else { print("já tem channel ativo, ignorando"); return }
         print("opened L2CAP channel (central)")
         setupStreams(for: channel)
     }
@@ -308,7 +361,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     func peripheralManager(_ peripheral: CBPeripheralManager, didOpen channel: CBL2CAPChannel?, error: (any Error)?) {
         if let error = error { print(error); return }
         guard let channel = channel else { print("channel is nil"); return }
-        guard channelL2CAP == nil else { print("channel already open, ignoring"); return }
+        // Already paired with someone this cycle — reject extra channels so a second peer can't
+        // overwrite the in-flight streams. Cleared by stopBLE/finishExchangeIfComplete.
+        guard channelL2CAP == nil else { print("já tem channel ativo, ignorando"); return }
         print("opened L2CAP channel (peripheral)")
         setupStreams(for: channel)
     }
@@ -348,6 +403,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         didReceiveFriend = true
         pairingTimeoutTimer?.invalidate()
         pairingTimeoutTimer = nil
+        finishExchangeIfComplete()
         DispatchQueue.main.async { self.onFriendFound?(friend) }
     }
 
@@ -370,9 +426,11 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
                 }
             }
         case .errorOccurred:
-            print("erro na stream")
+            print("erro na stream: \(aStream.streamError?.localizedDescription ?? "nil")")
+            handleStreamFailure(reason: "stream error")
         case .endEncountered:
             print("stream fechada")
+            handleStreamFailure(reason: "stream closed")
         default:
             break
         }
@@ -428,6 +486,8 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
 
         if sentByteCount >= pendingProfileData.count {
             print("profile fully sent (\(pendingProfileData.count) bytes)")
+            didSendProfileFully = true
+            finishExchangeIfComplete()
         } else {
             print("profile partially sent (\(sentByteCount)/\(pendingProfileData.count) bytes), awaiting space")
         }
