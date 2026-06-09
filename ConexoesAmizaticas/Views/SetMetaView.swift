@@ -85,13 +85,13 @@ struct SetMetaView: View {
         }
         .environment(\.colorScheme, .light)
         .onChange(of: meta) {
-            do {
+//            do {
                 viewModel.defineMeta(meta: meta)
-                try modelContext.save()
+//                try modelContext.save()
                 NotificationManager.scheduleMetaReminder(for: viewModel.connection)
-            } catch {
-                print("Erro ao salvar meta: \(error)")
-            }
+//            } catch {
+//                print("Erro ao salvar meta: \(error)")
+//            }
         }
         .onAppear {
             SetMetaOnboarding = false

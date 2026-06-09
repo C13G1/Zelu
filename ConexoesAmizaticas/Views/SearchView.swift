@@ -16,6 +16,7 @@ import SpriteKit
 /// scene can react to the typed query in real time.
 struct SearchView: View {
     @Binding var viewModel: InitialViewModel
+    @Binding var navigation: NavigationPath
     @State private var searchViewModel = SearchViewModel()
 
     @Query private var connections: [Connection]
@@ -30,32 +31,33 @@ struct SearchView: View {
     var body: some View {
         @Bindable var bindable = searchViewModel
 
-        NavigationStack(path: $bindable.navPath) {
-            ZStack {
-                SpriteView(scene: scene)
-                    .ignoresSafeArea()
-                    .tag("searchView")
+        ZStack {
+            SpriteView(scene: scene)
+                .ignoresSafeArea()
+                .tag("searchView")
 
-                if searchViewModel.hasEmptyResults {
-                    Text("Você não tem nenhum contato com esse nome")
-                        .font(.custom("Sora-Regular", size: 24))
-                        .frame(width: UIScreen.main.bounds.width * 0.8)
-                        .multilineTextAlignment(.center)
-                }
+            if searchViewModel.hasEmptyResults {
+                Text("Você não tem nenhum contato com esse nome")
+                    .font(.custom("Sora-Regular", size: 24))
+                    .frame(width: UIScreen.main.bounds.width * 0.8)
+                    .multilineTextAlignment(.center)
             }
-            .background(Color.lightBackground)
-            .searchable(
-                text: $bindable.searchText,
-                placement: .navigationBarDrawer(displayMode: .always)
-            )
-            .navigationDestination(for: Connection.self) { value in
-                FriendsProfileView(connection: value)
-            }
+        }
+        .background(Color.lightBackground)
+        .searchable(
+            text: $bindable.searchText,
+            placement: .navigationBarDrawer(displayMode: .always)
+        )
+        .navigationDestination(for: Connection.self) { value in
+            FriendsProfileView(connection: value)
         }
         .onAppear {
             scene.updateConnections(receivedConnections: Set(connections))
             scene.onFriendTapped = { connection in
-                searchViewModel.navPath.append(connection)
+                // ✅ Appenda no path do InitialView, não no navPath local
+                DispatchQueue.main.async {
+                    navigation.append(connection)
+                }
             }
         }
         .onChange(of: connections, initial: true) { _, newConnections in
@@ -71,6 +73,9 @@ struct SearchView: View {
 
 #Preview {
     @Previewable @State var viewModel = InitialViewModel()
-    SearchView(viewModel: $viewModel)
-        .modelContainer(for: AppSchema.models)
+    @Previewable @State var navigation = NavigationPath()
+    NavigationStack {
+        SearchView(viewModel: $viewModel, navigation: $navigation)
+    }
+    .modelContainer(for: AppSchema.models)
 }
