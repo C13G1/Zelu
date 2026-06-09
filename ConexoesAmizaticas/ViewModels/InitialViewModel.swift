@@ -18,7 +18,7 @@ import SwiftData
 class InitialViewModel {
     private(set) var modelContext           : ModelContext!
     private(set) var connectionsWithFriends : [Connection] = []
-    var profile                             : User = User()
+    var profile                             : User = User(name: "")
 
     /// Pulls the primary user and all active connections from local persistence.
     func fetchData() {

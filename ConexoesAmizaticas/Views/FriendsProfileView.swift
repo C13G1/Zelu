@@ -16,54 +16,54 @@ import Aptabase
 /// register new memories, or navigate to settings (`SetMetaView`).
 struct FriendsProfileView: View {
     @Environment(\.modelContext) private var modelContext
-    
+
     /// Controls the initial "New Friend" tutorial overlay to establish goals right after pairing.
     @AppStorage("SetMetaOnboarding") var SetMetaOnboarding: Bool = false
     @Environment(\.dismiss) private var dismiss
     @State var blurLevel: CGFloat = 0.0
     var viewModel: FriendProfileViewModel
     private let connectionID: UUID
-    
+
     @Query private var connections: [Connection]
     @Query private var allUsers: [User]
     @State private var refreshToken = 0
-    
+
     /// The localized view model handling the complex swipe gestures and deletion states for the photo carousel.
     @State private var feedViewModel: FriendFeedViewModel
-    
+
     private var ownUser: User? {
         let friendIDs = Set(connections.map { $0.friend.id })
         return allUsers.first { !friendIDs.contains($0.id) }
     }
-    
+
     private var lastMeetDaysText: String {
         guard let lastMet = viewModel.getLastMeet() else { return "nunca" }
         let days = Calendar.current.dateComponents([.day], from: lastMet, to: .now).day ?? 0
         if days == 0 { return "hoje" }
         return "há \(days) dias"
     }
-    
+
     var width = UIScreen.main.bounds.width
     var height = UIScreen.main.bounds.height
-    
+
     init(connection: Connection) {
         self.viewModel = FriendProfileViewModel(connection: connection)
         self.connectionID = connection.id
         self._feedViewModel = State(initialValue: FriendFeedViewModel(connection: connection))
     }
-    
+
     var body: some View {
         ZStack {
             ZStack {
                 PictureScroll(viewModel: feedViewModel)
                     .padding(.top, height * 0.55)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
+
                 Circle()
                     .frame(width: width * 1.6)
                     .foregroundStyle(.friendProfileBackground)
                     .padding(.top, (height * -0.6))
-                
+
                 VStack(spacing: 4) {
                     ZStack(alignment: .bottomTrailing) {
                         Image(uiImage: viewModel.getFriendImage() ??
@@ -76,24 +76,24 @@ struct FriendsProfileView: View {
                         .id(refreshToken)
                     }
                     .padding(.top, 10)
-                    
+
                     Text(viewModel.getFriendName().uppercased())
                         .font(.custom("Bolota", size: 48))
                         .padding(.top, 8)
                         .frame(width: width * 0.8)
                         .fontWeight(.semibold)
-                    
+
                     FriendStatsRow(viewModel: viewModel, lastMeetText: lastMeetDaysText)
-                    
+
                     RecordMomentButton(color: viewModel.getProfileColor()) {
                         BLEView(profile: ownUser ?? User())
                     }
-                    
+
                     AddPictureButton(viewModel: feedViewModel, color: viewModel.getProfileColor())
                         .padding(.top, 35)
                 }
                 .padding(.bottom, height * 0.3)
-                
+
                 if SetMetaOnboarding {
                     Rectangle()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -121,7 +121,7 @@ struct FriendsProfileView: View {
             .onAppear {
                 blurLevel = SetMetaOnboarding ? 5 : 0
             }
-            
+
             if SetMetaOnboarding {
                 VStack {
                     Text("novo amigo\nadicionado!")
@@ -135,7 +135,7 @@ struct FriendsProfileView: View {
                 }
                 .padding(.bottom, height * 0.0985)
             }
-            
+
             if let post = feedViewModel.postToDelete {
                 ViewCarrouselPicture(
                     imageData: post.images.first,
@@ -151,7 +151,9 @@ struct FriendsProfileView: View {
         }
         .toolbar {
             ToolbarItem {
-                NavigationLink(destination: SetMetaView(viewModel: viewModel)) {
+                // ✅ Usa NavigationLink(value:) — SetMetaView resolvida pelo
+                // .navigationDestination(for: AppRoute.self) no InitialView
+                NavigationLink(value: AppRoute.setMeta(viewModel)) {
                     ZStack {
                         if SetMetaOnboarding {
                             Circle()
@@ -169,19 +171,21 @@ struct FriendsProfileView: View {
     }
 }
 
-#Preview {
-    let mockConnection: Connection = {
-        let mockImage = UIImage(named: "gallery") ?? UIImage()
-        let mockData = mockImage.pngData() ?? Data()
-        let c = Connection(friend: User(name: "Juliana"))
-        
-        for _ in 0..<5 {
-            let post = Post(images: [mockData])
-            c.feedManager.addPost(post)
-        }
-        
-        return c
-    }()
-    
-    return FriendsProfileView(connection: mockConnection)
-}
+//#Preview {
+//    let mockConnection: Connection = {
+//        let mockImage = UIImage(named: "gallery") ?? UIImage()
+//        let mockData = mockImage.pngData() ?? Data()
+//        let c = Connection(friend: User(name: "Juliana"))
+//
+//        for _ in 0..<5 {
+//            let post = Post(images: [mockData])
+//            c.feedManager.addPost(post)
+//        }
+//
+//        return c
+//    }()
+//
+//    return NavigationStack {
+//        FriendsProfileView(connection: mockConnection)
+//    }
+//}
