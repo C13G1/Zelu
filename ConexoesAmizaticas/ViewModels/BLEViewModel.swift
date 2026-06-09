@@ -54,9 +54,23 @@ class BLEViewModel {
     private var holdTimer: Timer?
     var blNotificationManager: BluetoothNotificationManager
 
-    init(profile: User) {
+    /// When set, the friend was already discovered (via the "Pessoas por perto" grid), so this screen
+    /// skips BLE entirely and opens straight in the matched state to confirm the encounter.
+    private let presetFriend: User?
+    var isPreset: Bool { presetFriend != nil }
+
+    init(profile: User, presetFriend: User? = nil) {
         self.profile = profile
+        self.presetFriend = presetFriend
         self.blNotificationManager = BluetoothNotificationManager()
+    }
+
+    /// Enters the matched state directly with the preset friend, without any BLE discovery.
+    func startPreset() {
+        guard let presetFriend else { return }
+        friend = presetFriend
+        foundFriend = true
+        tryTransitionToMatched()
     }
 
     // MARK: - BLE lifecycle

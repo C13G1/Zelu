@@ -24,8 +24,8 @@ struct BLEView: View {
 
     private let avatarDiameter: CGFloat = 132
 
-    init(profile: User) {
-        _viewModel = State(initialValue: BLEViewModel(profile: profile))
+    init(profile: User, presetFriend: User? = nil) {
+        _viewModel = State(initialValue: BLEViewModel(profile: profile, presetFriend: presetFriend))
     }
 
     var body: some View {
@@ -71,7 +71,7 @@ struct BLEView: View {
                     .zIndex(1)
                     .compositingGroup()
 
-                    if viewModel.blNotificationManager.accessState == .ready {
+                    if viewModel.isPreset || viewModel.blNotificationManager.accessState == .ready {
                         textLayer(in: geo.size)
                             .allowsHitTesting(viewModel.phase != .holding)
                     }
@@ -93,6 +93,12 @@ struct BLEView: View {
         .onAppear {
             viewModel.resetSessionState()
             viewModel.onConfirmed = { dismiss() }
+            // Preset mode (came from the nearby grid): the friend is already known, so skip Bluetooth
+            // entirely and open straight in the matched state.
+            if viewModel.isPreset {
+                viewModel.startPreset()
+                return
+            }
             viewModel.refreshBluetoothAccess()
             // The view model (and its Bluetooth state) is retained across visits, so on a second entry
             // `isBluetoothReady` is already true and never changes — `onChange` won't fire. Kick off a
@@ -102,7 +108,7 @@ struct BLEView: View {
             }
         }
         .onChange(of: viewModel.blNotificationManager.isBluetoothReady) { _, isReady in
-            guard isReady else { return }
+            guard isReady, !viewModel.isPreset else { return }
             startSearching()
         }
         .onDisappear { viewModel.stopBLE() }
@@ -119,6 +125,15 @@ struct BLEView: View {
 
     @ViewBuilder
     private var bluetoothAccessOverlay: some View {
+        if viewModel.isPreset {
+            EmptyView()   // preset mode doesn't use Bluetooth, so never gate behind its permission
+        } else {
+            bluetoothAccessOverlayContent
+        }
+    }
+
+    @ViewBuilder
+    private var bluetoothAccessOverlayContent: some View {
         switch viewModel.blNotificationManager.accessState {
         case .needsPermission:
             BLEPermissionOverlay(

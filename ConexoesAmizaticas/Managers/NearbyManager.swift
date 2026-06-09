@@ -21,11 +21,16 @@ struct NearbyPerson: Identifiable, Equatable {
     let user: User
     var rssi: Int
     var lastSeen: Date
+    /// We tapped them and sent a meeting invite (waiting for them to tap back).
+    var sentInvite: Bool = false
+    /// They tapped us — "quer te encontrar".
+    var receivedInvite: Bool = false
 
     var id: UUID { user.id }
 
     static func == (lhs: NearbyPerson, rhs: NearbyPerson) -> Bool {
         lhs.user.id == rhs.user.id && lhs.rssi == rhs.rssi
+            && lhs.sentInvite == rhs.sentInvite && lhs.receivedInvite == rhs.receivedInvite
     }
 }
 
@@ -35,8 +40,18 @@ final class NearbyManager: NSObject {
     /// Emitted whenever the set of nearby people changes (added, profile arrived, or left).
     private(set) var people: [NearbyPerson] = []
 
+    /// Fired once when a pair has invited each other (mutual tap). The view routes to the meeting flow.
+    var onMutualMatch: ((User) -> Void)?
+
     /// Our own profile, served to peers that connect to us.
     let profile: User
+
+    // L2CAP message types (frame = [4-byte length][type byte][body]).
+    private enum MessageType: UInt8 {
+        case profile = 0x01   // body: UserDTO JSON
+        case invite  = 0x02   // body: empty — "I want to meet you"
+        case cancel  = 0x03   // body: empty — invite withdrawn
+    }
 
     // Shared identifiers — must match the peer app exactly.
     private let serviceID = CBUUID(string: "451A3F17-0062-41E1-82CC-98496CDA05FB")
@@ -121,9 +136,12 @@ final class NearbyManager: NSObject {
         people.removeAll { $0.user.id == userID }
     }
 
+    /// Backup cleanup: a person leaves the grid the instant their link drops (disconnect / stream end).
+    /// This only sweeps anyone left stale *without* a live link, so connected peers are never removed.
     private func pruneStale() {
         let cutoff = Date.now.addingTimeInterval(-NearbyManager.staleAfter)
-        people.removeAll { $0.lastSeen < cutoff }
+        let connectedIDs = Set(allLinks.compactMap { $0.userID })
+        people.removeAll { $0.lastSeen < cutoff && !connectedIDs.contains($0.user.id) }
     }
 
     #if DEBUG
@@ -154,7 +172,20 @@ final class NearbyManager: NSObject {
         var queuedProfile = false
         /// Set once the peer's profile is decoded; used to route disconnects to grid removal.
         var userID: UUID?
+        /// The decoded peer profile, kept so a mutual match can hand the full `User` to the UI.
+        var user: User?
+        /// We invited them (we tapped).
+        var iInvited = false
+        /// They invited us (they tapped).
+        var theyInvited = false
+        /// Guards the mutual-match callback so it fires once.
+        var didMatch = false
         weak var peripheral: CBPeripheral?   // central side only
+    }
+
+    /// Returns the link whose peer matches `userID`, if connected.
+    private func link(for userID: UUID) -> Link? {
+        allLinks.first { $0.userID == userID }
     }
 
     private func setupLink(for channel: CBL2CAPChannel, peripheral: CBPeripheral?) {
@@ -196,10 +227,46 @@ final class NearbyManager: NSObject {
         closeLink(link)
     }
 
-    // MARK: - Sending our profile
+    // MARK: - Invites (public API for the grid)
+
+    /// Toggles a meeting invite to the tapped person: sends one if none is pending, withdraws it
+    /// otherwise. A mutual invite (both sides tapped) fires `onMutualMatch`.
+    func toggleInvite(_ userID: UUID) {
+        guard let link = link(for: userID) else {
+            #if DEBUG
+            // Mock people have no real link — jump straight to the match so the whole flow (grid →
+            // matched → confirm) can be exercised on a single device.
+            if let person = people.first(where: { $0.user.id == userID }) { onMutualMatch?(person.user) }
+            #endif
+            return
+        }
+        link.iInvited.toggle()
+        send(link.iInvited ? .invite : .cancel, body: Data(), on: link)
+        setSentInvite(link.iInvited, for: userID)
+        checkMutual(link)
+    }
+
+    private func checkMutual(_ link: Link) {
+        guard link.iInvited, link.theyInvited, !link.didMatch, let user = link.user else { return }
+        link.didMatch = true
+        print("nearby mutual match: \(user.name)")
+        onMutualMatch?(user)
+    }
+
+    // MARK: - Sending framed messages
+
+    /// Frames and queues a typed message: [4-byte length][type][body].
+    private func send(_ type: MessageType, body: Data, on link: Link) {
+        var length = UInt32(1 + body.count).bigEndian
+        link.tx.append(Data(bytes: &length, count: 4))
+        link.tx.append(type.rawValue)
+        link.tx.append(body)
+        flush(link)
+    }
 
     private func queueProfile(on link: Link) {
         guard !link.queuedProfile else { return }
+        link.queuedProfile = true
         let picture: Data
         if let image = UIImage(data: profile.profilePicture),
            let compressed = image.preparingThumbnail(of: CGSize(width: 256, height: 256))?
@@ -210,11 +277,7 @@ final class NearbyManager: NSObject {
         }
         let dto = UserDTO(name: profile.name, profilePicture: picture, id: profile.id)
         guard let json = try? JSONEncoder().encode(dto) else { return }
-        link.queuedProfile = true
-        var length = UInt32(json.count).bigEndian
-        link.tx.append(Data(bytes: &length, count: 4))
-        link.tx.append(json)
-        flush(link)
+        send(.profile, body: json, on: link)
     }
 
     private func flush(_ link: Link) {
@@ -230,7 +293,7 @@ final class NearbyManager: NSObject {
         }
     }
 
-    // MARK: - Receiving a peer profile
+    // MARK: - Receiving framed messages
 
     private func receive(on link: Link) {
         guard let input = link.input else { return }
@@ -239,21 +302,52 @@ final class NearbyManager: NSObject {
             let read = input.read(&buffer, maxLength: NearbyManager.bufferSize)
             if read > 0 { link.rx.append(contentsOf: buffer.prefix(read)) }
         }
-        decode(on: link)
+        processFrames(on: link)
     }
 
-    private func decode(on link: Link) {
-        guard link.userID == nil else { return }   // profile already decoded for this link
-        guard link.rx.count >= 4 else { return }
-        let expected = link.rx.withUnsafeBytes { Int(UInt32(bigEndian: $0.load(as: UInt32.self))) }
-        guard link.rx.count >= expected + 4 else { return }
-        let json = link.rx.subdata(in: 4..<expected + 4)
-        guard let dto = try? JSONDecoder().decode(UserDTO.self, from: json) else { return }
-        let user = User(name: dto.name, profilePicture: dto.profilePicture, id: dto.id)
-        link.userID = user.id
-        link.rx.removeSubrange(0..<expected + 4)
-        print("nearby decoded: \(user.name)")
-        upsert(user, rssi: 0)
+    /// Drains every complete frame currently in the buffer.
+    private func processFrames(on link: Link) {
+        while link.rx.count >= 4 {
+            let length = link.rx.withUnsafeBytes { Int(UInt32(bigEndian: $0.load(as: UInt32.self))) }
+            guard length >= 1, link.rx.count >= length + 4 else { break }
+            let payload = link.rx.subdata(in: 4..<length + 4)
+            link.rx.removeSubrange(0..<length + 4)
+            guard let raw = payload.first, let type = MessageType(rawValue: raw) else { continue }
+            handle(type, body: payload.dropFirst(), on: link)
+        }
+    }
+
+    private func handle(_ type: MessageType, body: Data.SubSequence, on link: Link) {
+        switch type {
+        case .profile:
+            guard link.userID == nil,
+                  let dto = try? JSONDecoder().decode(UserDTO.self, from: Data(body)) else { return }
+            let user = User(name: dto.name, profilePicture: dto.profilePicture, id: dto.id)
+            link.userID = user.id
+            link.user = user
+            print("nearby decoded: \(user.name)")
+            upsert(user, rssi: 0)
+            // An invite may have arrived before the profile finished; reflect it now.
+            if link.theyInvited { setReceivedInvite(true, for: user.id) }
+            checkMutual(link)
+        case .invite:
+            link.theyInvited = true
+            if let userID = link.userID { setReceivedInvite(true, for: userID) }
+            checkMutual(link)
+        case .cancel:
+            link.theyInvited = false
+            if let userID = link.userID { setReceivedInvite(false, for: userID) }
+        }
+    }
+
+    private func setSentInvite(_ value: Bool, for userID: UUID) {
+        guard let index = people.firstIndex(where: { $0.user.id == userID }) else { return }
+        people[index].sentInvite = value
+    }
+
+    private func setReceivedInvite(_ value: Bool, for userID: UUID) {
+        guard let index = people.firstIndex(where: { $0.user.id == userID }) else { return }
+        people[index].receivedInvite = value
     }
 }
 
