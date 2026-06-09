@@ -17,30 +17,25 @@ struct SetMetaView: View {
     @AppStorage("SetMetaOnboarding") var SetMetaOnboarding: Bool = true
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-
+    
     @State var meta: Meta
     @State private var showDeleteConfirmation: Bool = false
-
+    
     var viewModel: FriendProfileViewModel
     let possibleMetas: [Meta] = [.nenhuma, .semanal, .quinzenal, .mensal, .bimestral, .semestral, .anual]
-
+    
     init(viewModel: FriendProfileViewModel) {
         self.viewModel = viewModel
         self.meta = viewModel.getMeta()
     }
-
+    
     var body: some View {
         ZStack {
-            Rectangle()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .foregroundStyle(.friendProfileBackground)
-                .ignoresSafeArea()
-
             VStack(alignment: .center) {
                 EditFriendProfileView(connection: viewModel.connection)
 
                 HStack {
-                    Text("PROMESSA")
+                    Text("Meta")
                         .font(.custom("Bolota", size: 24))
                     Spacer()
                     Picker("Meta", selection: $meta) {
@@ -51,8 +46,8 @@ struct SetMetaView: View {
                     .pickerStyle(.menu)
                     .tint(.gray)
                 }
-                .padding(.horizontal, 45)
-                .padding(.top, 30)
+                .padding(.horizontal, 50)
+                .padding(.top, 20)
 
                 Spacer()
 
@@ -65,9 +60,21 @@ struct SetMetaView: View {
                         .font(.custom("Sora-Light", size: 15))
                         .foregroundStyle(.red)
                 }
-                .padding(.bottom, 30)
             }
             .blur(radius: showDeleteConfirmation ? 10 : 0)
+            .environment(\.colorScheme, .light)
+            .onChange(of: meta) {
+                do {
+                    viewModel.defineMeta(meta: meta)
+                    try modelContext.save()
+                    NotificationManager.scheduleMetaReminder(for: viewModel.connection)
+                } catch {
+                    print("Erro ao salvar meta: \(error)")
+                }
+            }
+            .onAppear {
+                SetMetaOnboarding = false
+            }
 
             if showDeleteConfirmation {
                 ConfirmationOverlay(
