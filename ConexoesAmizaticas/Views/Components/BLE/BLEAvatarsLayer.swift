@@ -17,6 +17,9 @@ struct BLEAvatarsLayer: View {
     let avatarDiameter: CGFloat
     let topY: CGFloat
     let bottomY: CGFloat
+    /// Washes the avatars with a faint white veil to read as "disabled" — used when the matched friend
+    /// is on cooldown and the encounter can't be registered.
+    var isDimmed: Bool = false
 
     var body: some View {
         let centerX = size.width / 2
@@ -28,6 +31,7 @@ struct BLEAvatarsLayer: View {
                     diameter: avatarDiameter,
                     strokeColor: .white
                 )
+                .overlay(dimVeil)
                 .scaleEffect(phase == .searching ? 0.8 : 1.0)
                 .position(
                     x: centerX,
@@ -40,7 +44,12 @@ struct BLEAvatarsLayer: View {
                 diameter: avatarDiameter,
                 strokeColor: .white
             )
+            .overlay(dimVeil)
             .position(x: centerX, y: bottomY)
         }
+    }
+
+    private var dimVeil: some View {
+        Circle().fill(Color.white.opacity(isDimmed ? 0.3 : 0))
     }
 }

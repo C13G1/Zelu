@@ -66,7 +66,8 @@ struct BLEView: View {
                         phase: viewModel.phase,
                         avatarDiameter: avatarDiameter,
                         topY: topY,
-                        bottomY: bottomY
+                        bottomY: bottomY,
+                        isDimmed: isMatchedOnCooldown
                     )
                     .zIndex(1)
                     .compositingGroup()
@@ -155,6 +156,19 @@ struct BLEView: View {
         viewModel.holdProgress > 0.001 || viewModel.phase == .holding || viewModel.phase == .confirmed
     }
 
+    /// The saved connection for the currently matched peer, if they're already a friend.
+    private var matchedConnection: Connection? {
+        viewModel.existingConnection(in: existingConnections)
+    }
+
+    /// True when the matched peer is an existing friend met too recently to register again — the cooldown
+    /// (`Connection.meetingCooldown`) hasn't elapsed. Checked here, at match time, so the screen shows the
+    /// "já se encontraram" copy instead of inviting another registration.
+    private var isMatchedOnCooldown: Bool {
+        guard let matchedConnection else { return false }
+        return !matchedConnection.canRegisterMeeting
+    }
+
     private var isWhiteMode: Bool {
         viewModel.phase == .confirmed || viewModel.showConfirmationBackground
     }
@@ -205,7 +219,9 @@ struct BLEView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 32)
 
-            if viewModel.phase == .matched, viewModel.showSearchAgainButton {
+            // On cooldown there's nothing to confirm, so offer "search again" right away instead of
+            // after the usual delay.
+            if viewModel.phase == .matched, viewModel.showSearchAgainButton || isMatchedOnCooldown {
                 searchAgainButton
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                     .padding(.top, 8)
@@ -233,7 +249,40 @@ struct BLEView: View {
         .transition(.opacity)
     }
 
+    @ViewBuilder
     private var matchedText: some View {
+        if isMatchedOnCooldown, let friend = viewModel.friend {
+            cooldownText(for: friend)
+        } else {
+            normalMatchedText
+        }
+    }
+
+    /// Shown when the matched friend was already met within the cooldown window. The second line is
+    /// driven by the friend's meeting goal (`Meta.reuniteText`).
+    private func cooldownText(for friend: User) -> some View {
+        VStack(spacing: 14) {
+            Text("Você e \(friend.name) já se encontraram hoje!")
+                .font(
+                    Font.custom("Sora", size: 28)
+                        .weight(.heavy)
+                )
+                .kerning(0.38)
+                .multilineTextAlignment(.center)
+                .foregroundColor(Color(red: 1, green: 1, blue: 0.96))
+                .frame(width: 306, alignment: .top)
+
+            Text(matchedConnection?.metaManager.meta.reuniteText ?? "")
+                .font(Font.custom("Sora", size: 20))
+                .kerning(0.38)
+                .multilineTextAlignment(.center)
+                .foregroundColor(Color(red: 1, green: 1, blue: 0.96))
+                .frame(width: 300, alignment: .top)
+        }
+        .transition(.opacity)
+    }
+
+    private var normalMatchedText: some View {
         let friend = viewModel.friend
         let headline = friend.map { friend in
             viewModel.isExistingFriend(in: existingConnections)
@@ -305,7 +354,8 @@ struct BLEView: View {
     private var holdGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { _ in
-                guard viewModel.phase == .matched else { return }
+                // Already met within the cooldown — block confirming, only "search again" is allowed.
+                guard viewModel.phase == .matched, !isMatchedOnCooldown else { return }
                 if !viewModel.isHolding {
                     viewModel.isHolding = true
                     viewModel.startHold()

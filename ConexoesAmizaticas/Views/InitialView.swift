@@ -10,6 +10,8 @@ import UIKit
 import _SpriteKit_SwiftUI
 import _SwiftData_SwiftUI
 
+// MARK: - InitialView
+
 /// The primary interactive workspace of the application.
 ///
 /// `InitialView` is a hybrid component that overlays standard SwiftUI navigation and toolbars onto
@@ -18,7 +20,6 @@ import _SwiftData_SwiftUI
 struct InitialView: View {
     @Environment(\.modelContext) private var modelContext
     @State var vm: InitialViewModel = InitialViewModel()
-    @State private var selectedConnection: Connection?
     @State private var showVacuoView: Bool = false
     @State var navigation: NavigationPath = NavigationPath()
 
@@ -45,7 +46,8 @@ struct InitialView: View {
                     ToolBar(vm: $vm)
                         .padding(.bottom, width * 2.28)
 
-                    TabBar(viewModel: $vm, user: vm.profile)
+//                    TabBar(viewModel: $vm,user: vm.profile)
+                    TabBar(viewModel: $vm, navigation: $navigation, user: vm.profile)
                         .padding(.top, width * 2.15)
                 }
 
@@ -71,8 +73,19 @@ struct InitialView: View {
                     .padding(.top, height * 0.3)
                 }
             }
+            // ✅ Todos os destinos centralizados aqui dentro do NavigationStack
             .navigationDestination(for: Connection.self) { value in
                 FriendsProfileView(connection: value)
+            }
+            .navigationDestination(for: AppRoute.self) { route in
+                switch route {
+                case .search:
+                    SearchView(viewModel: $vm, navigation: $navigation)
+                case .ble:
+                    BLEView(profile: vm.profile)
+                case .setMeta(let friendVM):
+                    SetMetaView(viewModel: friendVM)
+                }
             }
             .navigationDestination(isPresented: $showVacuoView) {
                 VacuoView()
@@ -90,8 +103,9 @@ struct InitialView: View {
             scene.onSpiralTapped = {
                 showVacuoView = true
             }
-            
-            vm.profile = currentUser
+            if users.first != nil {
+                vm.profile = currentUser
+            }
         }
         .onChange(of: users) {
             vm.profile = currentUser
