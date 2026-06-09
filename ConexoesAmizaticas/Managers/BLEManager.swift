@@ -27,6 +27,12 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// Maximum bytes read from the L2CAP input stream in a single pass.
     private static let bufferSize: Int = 1024
 
+    /// Profile picture sent over BLE. Tune these to trade quality against transfer size:
+    /// the transfer is fast (tens of KB in well under a second), so a moderate bump barely affects
+    /// the time to connect — discovery and the L2CAP handshake dominate that, not the bytes.
+    private static let profileImageSide: CGFloat = 256        // px (square)
+    private static let profileImageQuality: CGFloat = 0.7     // JPEG quality 0...1
+
     /// A closure triggered when a complete user profile is successfully received over the BLE stream.
     var onFriendFound: ((User) -> Void)?
     
@@ -527,8 +533,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         guard !didQueueProfile else { return }
         let pictureToSend: Data
         if let image = UIImage(data: profile.profilePicture),
-           let thumb = image.preparingThumbnail(of: CGSize(width: 256, height: 256)),
-           let compressed = thumb.jpegData(compressionQuality: 0.7) {
+           let compressed = image
+               .squareThumbnail(side: BLEManager.profileImageSide)
+               .jpegData(compressionQuality: BLEManager.profileImageQuality) {
             pictureToSend = compressed
         } else {
             pictureToSend = profile.profilePicture
