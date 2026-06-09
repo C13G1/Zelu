@@ -58,14 +58,22 @@ struct NearbyPeopleView: View {
         #endif
         .navigationDestination(isPresented: Binding(
             get: { matchedFriend != nil },
-            set: { if !$0 { matchedFriend = nil } }
+            set: { presented in
+                if !presented {
+                    matchedFriend = nil
+                    manager.resume()   // back from the meeting — become discoverable again
+                }
+            }
         )) {
             if let matchedFriend {
                 BLEView(profile: profile, presetFriend: matchedFriend)
             }
         }
         .onAppear {
-            manager.onMutualMatch = { friend in matchedFriend = friend }
+            manager.onMutualMatch = { friend in
+                matchedFriend = friend
+                manager.pauseForMeeting()   // vanish from other grids while meeting
+            }
             manager.start()
         }
         .onDisappear { manager.stop() }
