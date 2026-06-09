@@ -97,14 +97,11 @@ struct RelationshipChart: View {
                     .font(.custom("Bolota", size: 36))
                     .foregroundStyle(Color(uiColor: selected.state.color))
                 Text(selected.state.displayName.uppercased())
-                    .font(.custom("Sora-SemiBold", size: 13))
+                    .font(.custom("Sora-SemiBold", size: 22))
                     .foregroundStyle(Color(uiColor: selected.state.color))
             } else {
-                Text("RODA DA")
-                    .font(.custom("Bolota", size: 16))
-                    .foregroundStyle(.lightBackground)
-                Text("AMIZADE")
-                    .font(.custom("Bolota", size: 16))
+                Text("RODA DA\nAMIZADE")
+                    .font(.custom("Bolota", size: 36))
                     .foregroundStyle(.lightBackground)
             }
         }
