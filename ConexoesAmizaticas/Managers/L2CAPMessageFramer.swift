@@ -1,33 +1,28 @@
 //
-//  MessageFramer.swift
+//  L2CAPMessageFramer.swift
 //  ConexoesAmizaticas
 //
 //  Created by Enzo Ferroni on 09/06/26.
 //
-//  Length-prefixed message framing for an L2CAP byte stream.
-//
-//  An L2CAP channel is a raw byte pipe with no message boundaries, so several messages sent in a row
-//  arrive glued together. Each message is wrapped as [4-byte big-endian length][1-byte type][body].
-//  `MessageFramer` hides that bookkeeping: build outgoing frames with `frame(_:body:)`, feed received
-//  bytes with `append(_:)`, and pull whole incoming messages with `next()`.
-//
 
 import Foundation
 
-struct MessageFramer {
-    /// Bytes received but not yet split into whole messages.
+/// Splits a raw L2CAP byte stream into whole messages, and frames outgoing ones.
+///
+/// An L2CAP channel is a continuous stream of bytes with no message boundaries, so messages sent one
+/// after another arrive glued together and can be split across reads. Each message is prefixed with a
+/// 4-byte length so the receiver knows where one ends and the next begins.
+struct L2CAPMessageFramer {
     private var buffer = Data()
-    /// Largest message we accept; anything bigger means the stream is corrupt.
     private let maxMessageBytes: Int
 
     init(maxMessageBytes: Int = 2_000_000) {
         self.maxMessageBytes = maxMessageBytes
     }
 
-    /// Signals a corrupt stream — the caller should drop the link.
     enum FramingError: Error { case corrupt }
 
-    /// Wraps a message for sending: [4-byte length][type][body].
+    /// Wraps a message for sending: a 4-byte length followed by the type byte and the body.
     static func frame(_ type: UInt8, body: Data = Data()) -> Data {
         var length = UInt32(1 + body.count).bigEndian
         var out = Data(bytes: &length, count: 4)
@@ -36,13 +31,13 @@ struct MessageFramer {
         return out
     }
 
-    /// Adds freshly received bytes to the buffer.
+    /// Adds bytes just read from the stream to the buffer.
     mutating func append(_ data: Data) {
         buffer.append(data)
     }
 
-    /// Pops the next complete message, or nil if one hasn't fully arrived yet.
-    /// - Throws: `FramingError.corrupt` when the framing is invalid.
+    /// Returns the next complete message, or nil if it hasn't fully arrived yet.
+    /// Throws `FramingError.corrupt` when the length header is invalid (the stream is out of sync).
     mutating func next() throws -> (type: UInt8, body: Data)? {
         guard buffer.count >= 4 else { return nil }
         let start = buffer.startIndex

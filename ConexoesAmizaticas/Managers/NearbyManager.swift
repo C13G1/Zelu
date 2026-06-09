@@ -9,11 +9,8 @@ import Foundation
 import CoreBluetooth
 import UIKit
 
-/// A person discovered nearby, as shown in the "Pessoas por perto" grid.
-///
-/// Starts as a name-only placeholder (`hasPhoto == false`, default avatar) the instant the peer's
-/// identity arrives, and is upgraded with the real photo a moment later. `sentInvite` / `receivedInvite`
-/// drive the tap-to-meet state (ring colour and badge) in `NearbyPeopleView`.
+/// A person discovered nearby, as shown in the "Pessoas por perto" grid. Appears name-only first
+/// (`hasPhoto == false`) and gets its photo a moment later. The invite flags drive the tap-to-meet UI.
 struct NearbyPerson: Identifiable, Equatable {
     var user: User
     /// False while only the name has arrived; true once the photo has been received.
@@ -31,22 +28,12 @@ struct NearbyPerson: Identifiable, Equatable {
     }
 }
 
-/// Discovers every nearby app user over BLE and runs the AirDrop-style "Pessoas por perto" experience.
+/// Discovers every nearby app user over BLE and drives the "Pessoas por perto" grid.
 ///
-/// Where `BLEManager` auto-pairs with a single closest peer, `NearbyManager` shows *everyone* around and
-/// lets the user choose. Each device is simultaneously a Central (it scans and connects) and a Peripheral
-/// (it advertises and accepts connections), so every pair ends up with one shared L2CAP link.
-///
-/// How it works, end to end:
-/// 1. **Discover** – everyone advertises a random key and scans. To avoid two links per pair, a tie-breaker
-///    decides who connects: the device with the *lower* key dials, the other waits. One link per pair.
-/// 2. **Exchange** – over that link each side sends a tiny `identity` message (name shows instantly) then
-///    its `profile` (the photo, which loads a moment later). Messages are framed by `MessageFramer`.
-/// 3. **Stay honest** – a heartbeat pings every few seconds; a peer that goes silent (left the screen,
-///    crashed, walked away) drops off the grid. A clean exit removes them immediately.
-/// 4. **Invite** – tapping a person sends an `invite`. When both sides have invited each other, that is a
-///    mutual match: `onMutualMatch` fires, the pair leaves for the meeting screen and (via `pauseForMeeting`)
-///    vanishes from everyone else's grid until they come back.
+/// Unlike `BLEManager`, which auto-pairs with the single closest peer, this shows everyone around so the
+/// user can choose. Each device both scans and advertises; a key tie-breaker keeps one L2CAP link per
+/// pair, over which they swap name and photo. Tapping a person sends an invite — when two people invite
+/// each other (`onMutualMatch`) they head to the meeting and disappear from the other grids.
 @Observable
 final class NearbyManager: NSObject {
 
@@ -214,9 +201,6 @@ final class NearbyManager: NSObject {
     }
 
     // MARK: - Grid mutations
-    //
-    // `people` is the single source of truth for the UI. These helpers are the only writers, so the
-    // grid stays consistent and every change re-renders the view.
 
     /// Inserts the person, or refreshes their name/photo if already on the grid. A nil `photo` means
     /// "name only" — any photo that already arrived is kept.
@@ -277,7 +261,7 @@ final class NearbyManager: NSObject {
         var input: InputStream?
         var output: OutputStream?
         /// Splits the incoming byte stream back into whole messages.
-        var framer = MessageFramer()
+        var framer = L2CAPMessageFramer()
         /// Outgoing bytes waiting for stream space, and how many have already been written.
         var tx = Data()
         var sent = 0
@@ -353,10 +337,10 @@ final class NearbyManager: NSObject {
 
     // MARK: - Sending
 
-    /// Frames a message and queues it for the peer. `MessageFramer` handles the byte layout.
+    /// Frames a message and queues it for the peer. `L2CAPMessageFramer` handles the byte layout.
     private func send(_ type: MessageType, body: Data = Data(), on link: Link) {
         guard link.output != nil else { return }
-        link.tx.append(MessageFramer.frame(type.rawValue, body: body))
+        link.tx.append(L2CAPMessageFramer.frame(type.rawValue, body: body))
         flush(link)
     }
 
