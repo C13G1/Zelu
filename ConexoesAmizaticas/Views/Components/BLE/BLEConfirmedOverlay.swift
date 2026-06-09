@@ -13,9 +13,6 @@ import SwiftUI
 /// the press-and-hold gesture completes.
 struct BLEConfirmedOverlay: View {
     let reveal: CGFloat
-    /// When the encounter fell inside the 24h cooldown the meeting does not score, so the overlay
-    /// tells the user they already met today instead of celebrating a registered encounter.
-    var onCooldown: Bool = false
 
     var body: some View {
         ZStack {
@@ -25,12 +22,10 @@ struct BLEConfirmedOverlay: View {
                 .scaleEffect(0.92 + 0.08 * reveal)
 
             VStack(spacing: 2) {
-                Text(onCooldown ? "Vocês já se\nencontraram hoje" : "Encontro registrado!")
+                Text("Encontro registrado!")
             }
             .font(
-                // The cooldown copy is longer and wraps to two lines, so it needs a smaller size to
-                // fit the same circle the single-line "Encontro registrado!" was sized for.
-                Font.custom("Bolota", size: onCooldown ? 26 : 32)
+                Font.custom("Bolota", size: 32)
                     .weight(.bold)
             )
             .kerning(0.38)
