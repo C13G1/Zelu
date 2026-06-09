@@ -29,6 +29,20 @@ enum Meta: String, Codable {
         }
     }
 
+    /// Phrasing for the BLE cooldown screen: "se encontrem novamente dentro de …", driven by the
+    /// friend's chosen meeting goal.
+    var reuniteText: String {
+        switch self {
+        case .nenhuma:   return "se encontrem novamente quando quiserem"
+        case .semanal:   return "se encontrem novamente dentro de uma semana"
+        case .quinzenal: return "se encontrem novamente dentro de 15 dias"
+        case .mensal:    return "se encontrem novamente dentro de um mês"
+        case .bimestral: return "se encontrem novamente dentro de 3 meses"
+        case .semestral: return "se encontrem novamente dentro de 6 meses"
+        case .anual:     return "se encontrem novamente dentro de um ano"
+        }
+    }
+
     /// The numeric equivalent of the goal in days.
     var days: Int {
         switch self {
