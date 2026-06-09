@@ -58,7 +58,8 @@ class FriendNode: SKShapeNode {
         let path = UIBezierPath(roundedRect: CGRect(x: -128, y: -128, width: 256, height: 256), cornerRadius: 128).cgPath
 
         self.sprite = SKShapeNode(path: path)
-        let image = (UIImage(data: imageData) ?? UIImage()).normalized
+        // Square-crop so a non-square photo doesn't stretch when SpriteKit fills the square shape.
+        let image = (UIImage(data: imageData) ?? UIImage()).squareThumbnail(side: 256)
         self.sprite.fillTexture = SKTexture(image: image)
         self.sprite.fillColor = .white
         self.sprite.strokeColor = state.color
