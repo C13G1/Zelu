@@ -17,72 +17,50 @@ struct SetMetaView: View {
     @AppStorage("SetMetaOnboarding") var SetMetaOnboarding: Bool = true
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-
+    
     @State var meta: Meta
     @State private var showDeleteConfirmation: Bool = false
-
+    
     var viewModel: FriendProfileViewModel
     let possibleMetas: [Meta] = [.nenhuma, .semanal, .quinzenal, .mensal, .bimestral, .semestral, .anual]
-
+    
     init(viewModel: FriendProfileViewModel) {
         self.viewModel = viewModel
         self.meta = viewModel.getMeta()
     }
-
+    
     var body: some View {
-        ZStack {
-            Rectangle()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .foregroundStyle(.friendProfileBackground)
-                .ignoresSafeArea()
-
-            VStack(alignment: .center) {
-                EditFriendProfileView(connection: viewModel.connection)
-
-                HStack {
-                    Text("PROMESSA")
-                        .font(.custom("Bolota", size: 24))
-                    Spacer()
-                    Picker("Meta", selection: $meta) {
-                        ForEach(possibleMetas, id: \.self) { m in
-                            Text(m.displayText).tag(m)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .tint(.gray)
-                }
-                .padding(.horizontal, 45)
-                .padding(.top, 30)
-
+        VStack(alignment: .center) {
+            EditFriendProfileView(connection: viewModel.connection)
+            
+            HStack {
+                Text("Meta")
+                    .font(.custom("Bolota", size: 24))
                 Spacer()
-
-                Button(action: {
-                    withAnimation {
-                        showDeleteConfirmation = true
+                Picker("Meta", selection: $meta) {
+                    ForEach(possibleMetas, id: \.self) { m in
+                        Text(m.displayText).tag(m)
                     }
-                }) {
-                    Text("apagar contato")
-                        .font(.custom("Sora-Light", size: 15))
-                        .foregroundStyle(.red)
                 }
-                .padding(.bottom, 30)
+                .pickerStyle(.menu)
+                .tint(.gray)
             }
-            .blur(radius: showDeleteConfirmation ? 10 : 0)
-
-            if showDeleteConfirmation {
-                ConfirmationOverlay(
-                    imageData: viewModel.getFriendImage()?.pngData(),
-                    preTitle: "Você está prestes a excluir \(viewModel.getFriendName())",
-                    title: "QUER MESMO DELETAR ESTE CONTATO?",
-                    description: "Esta ação é permanente e todo o histórico será perdido.",
-                    onCancel: { withAnimation { showDeleteConfirmation = false } },
-                    onConfirm: {
-                        viewModel.deleteConnection(modelContext: modelContext)
-                        dismiss()
-                    }
-                )
+            .padding(.horizontal, 50)
+            .padding(.top, 20)
+            
+            Spacer()
+            
+            Button(action: {
+                withAnimation {
+                    showDeleteConfirmation = true
+                }
+            }) {
+                Text("apagar contato")
+                    .font(.custom("Sora-Light", size: 15))
+                    .foregroundStyle(.red)
             }
         }
+        .blur(radius: showDeleteConfirmation ? 10 : 0)
         .environment(\.colorScheme, .light)
         .onChange(of: meta) {
             do {
@@ -95,6 +73,20 @@ struct SetMetaView: View {
         }
         .onAppear {
             SetMetaOnboarding = false
+        }
+        
+        if showDeleteConfirmation {
+            ConfirmationOverlay(
+                imageData: viewModel.getFriendImage()?.pngData(),
+                preTitle: "Você está prestes a excluir \(viewModel.getFriendName())",
+                title: "QUER MESMO DELETAR ESTE CONTATO?",
+                description: "Esta ação é permanente e todo o histórico será perdido.",
+                onCancel: { withAnimation { showDeleteConfirmation = false } },
+                onConfirm: {
+                    viewModel.deleteConnection(modelContext: modelContext)
+                    dismiss()
+                }
+            )
         }
     }
 }

@@ -175,8 +175,11 @@ struct BLEView: View {
 
     // MARK: - Layout helpers
 
+    /// Mirrors the bottom avatar across the vertical center so both photos sit the same distance from
+    /// the middle of the screen (i.e. the friend avatar is as far from the top edge as the user's own
+    /// avatar is from the bottom edge).
     private func topAvatarCenterY(in size: CGSize) -> CGFloat {
-        max(140, size.height * 0.18)
+        size.height - bottomAvatarCenterY(in: size)
     }
 
     private func bottomAvatarCenterY(in size: CGSize) -> CGFloat {
@@ -202,15 +205,13 @@ struct BLEView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 32)
 
-            Spacer(minLength: 24)
-
             if viewModel.phase == .matched, viewModel.showSearchAgainButton {
                 searchAgainButton
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    .padding(.bottom, size.height - bottomAvatarCenterY(in: size) + avatarDiameter / 2 + 28)
-            } else {
-                Spacer(minLength: size.height - bottomAvatarCenterY(in: size) + avatarDiameter / 2 + 28)
+                    .padding(.top, 8)
             }
+
+            Spacer(minLength: 0)
         }
         .frame(width: size.width, height: size.height)
         .animation(.easeInOut(duration: 0.35), value: viewModel.phase)
