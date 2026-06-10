@@ -30,63 +30,78 @@ struct SetMetaView: View {
     }
     
     var body: some View {
-        VStack(alignment: .center) {
-            EditFriendProfileView(connection: viewModel.connection)
-            
-            HStack {
-                Text("Meta")
-                    .font(.custom("Bolota", size: 24))
-                Spacer()
-                Picker("Meta", selection: $meta) {
-                    ForEach(possibleMetas, id: \.self) { m in
-                        Text(m.displayText).tag(m)
+        ZStack {
+            VStack(alignment: .center) {
+                EditFriendProfileView(connection: viewModel.connection)
+
+                HStack {
+                    Text("Meta")
+                        .font(.custom("Bolota", size: 24))
+                    Spacer()
+                    Picker("Meta", selection: $meta) {
+                        ForEach(possibleMetas, id: \.self) { m in
+                            Text(m.displayText).tag(m)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .tint(.gray)
                 }
-                .pickerStyle(.menu)
-                .tint(.gray)
+                .padding(.horizontal, 50)
+                .padding(.top, 20)
+
+                Spacer()
+
+                Button(action: {
+                    withAnimation {
+                        showDeleteConfirmation = true
+                    }
+                }) {
+                    Text("apagar contato")
+                        .font(.custom("Sora-Light", size: 15))
+                        .foregroundStyle(.red)
+                }
             }
-            .padding(.horizontal, 50)
-            .padding(.top, 20)
-            
-            Spacer()
-            
-            Button(action: {
-                withAnimation {
-                    showDeleteConfirmation = true
+            .blur(radius: showDeleteConfirmation ? 10 : 0)
+            .environment(\.colorScheme, .light)
+            .onChange(of: meta) {
+                do {
+                    viewModel.defineMeta(meta: meta)
+                    try modelContext.save()
+                    NotificationManager.scheduleMetaReminder(for: viewModel.connection)
+                } catch {
+                    print("Erro ao salvar meta: \(error)")
                 }
-            }) {
-                Text("apagar contato")
-                    .font(.custom("Sora-Light", size: 15))
-                    .foregroundStyle(.red)
+            }
+            .onAppear {
+                SetMetaOnboarding = false
+            }
+
+            if showDeleteConfirmation {
+                ConfirmationOverlay(
+                    imageData: viewModel.getFriendImage()?.pngData(),
+                    preTitle: "Você está prestes a excluir \(viewModel.getFriendName())",
+                    title: "QUER MESMO DELETAR ESTE CONTATO?",
+                    description: "Esta ação é permanente e todo o histórico será perdido.",
+                    onCancel: { withAnimation { showDeleteConfirmation = false } },
+                    onConfirm: {
+                        viewModel.deleteConnection(modelContext: modelContext)
+                        dismiss()
+                    }
+                )
             }
         }
-        .blur(radius: showDeleteConfirmation ? 10 : 0)
         .environment(\.colorScheme, .light)
         .onChange(of: meta) {
-            do {
+//            do {
                 viewModel.defineMeta(meta: meta)
-                try modelContext.save()
+//                try modelContext.save()
                 NotificationManager.scheduleMetaReminder(for: viewModel.connection)
-            } catch {
-                print("Erro ao salvar meta: \(error)")
-            }
+//            } catch {
+//                print("Erro ao salvar meta: \(error)")
+//            }
         }
         .onAppear {
             SetMetaOnboarding = false
-        }
-        
-        if showDeleteConfirmation {
-            ConfirmationOverlay(
-                imageData: viewModel.getFriendImage()?.pngData(),
-                preTitle: "Você está prestes a excluir \(viewModel.getFriendName())",
-                title: "QUER MESMO DELETAR ESTE CONTATO?",
-                description: "Esta ação é permanente e todo o histórico será perdido.",
-                onCancel: { withAnimation { showDeleteConfirmation = false } },
-                onConfirm: {
-                    viewModel.deleteConnection(modelContext: modelContext)
-                    dismiss()
-                }
-            )
         }
     }
 }

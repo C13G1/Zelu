@@ -44,7 +44,7 @@ struct UserProfileView: View {
                 } else {
                     RelationshipChart(
                         viewModel: viewModel,
-                        size: CGSize(width: width * 0.75, height: height * 0.25)
+                        size: CGSize(width: 330, height: 330)
                     )
                 }
 

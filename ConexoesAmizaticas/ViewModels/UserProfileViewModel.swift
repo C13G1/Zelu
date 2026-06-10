@@ -17,8 +17,13 @@ class UserProfileViewModel {
     /// Mirror of the SwiftData query result. Update from the view whenever connections change.
     var connections: [Connection] = []
 
-    /// Angle currently focused by the user via `.chartAngleSelection`.
+    /// Angle being scrubbed right now via press-and-hold (`.chartAngleSelection`); clears on release.
     var selectedAngle: Double?
+    /// Angle pinned by a tap; stays until tapped again. Used when nothing is being scrubbed.
+    var pinnedAngle: Double?
+
+    /// The angle that should drive the highlight: a live scrub takes priority over a pinned tap.
+    var activeAngle: Double? { selectedAngle ?? pinnedAngle }
 
     /// Total number of saved metaManagers.
     var friendCount: Int { connections.count }
@@ -51,8 +56,8 @@ class UserProfileViewModel {
 
     /// The bucket the user is currently pointing at, or `nil` when no selection is active.
     var selectedItem: (state: RelationshipState, count: Int)? {
-        guard let selectedAngle else { return nil }
-        guard let index = categoryRanges.firstIndex(where: { $0.range.contains(selectedAngle) }) else { return nil }
+        guard let activeAngle else { return nil }
+        guard let index = categoryRanges.firstIndex(where: { $0.range.contains(activeAngle) }) else { return nil }
         return friendsByState[index]
     }
 
