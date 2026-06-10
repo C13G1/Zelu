@@ -9,16 +9,16 @@ import Foundation
 import MultipeerConnectivity
 import UIKit
 
-/// A person discovered nearby, as shown in the "Pessoas por perto" grid. Appears name-only first
-/// (`hasPhoto == false`) and gets its photo a moment later. The invite flags drive the tap-to-meet UI.
+/// A person discovered nearby. Appears with the name first and receives the photo a moment later.
+/// The invite flags tell the radar what to show for this person.
 struct NearbyPerson: Identifiable, Equatable {
     var user: User
     var hasPhoto: Bool
     var sentInvite: Bool = false
     var receivedInvite: Bool = false
-    /// 0...1 — how physically close this person is (1 = right next to you). MultipeerConnectivity
-    /// exposes no signal strength, so this stays at the neutral 0.5 until a real source (e.g. a
-    /// parallel BLE RSSI scan) feeds it; the orbit screen ranks people by it.
+    /// How close this person is, from 0 to 1 (1 = right next to you). The radar uses this to pick
+    /// the ring. MultipeerConnectivity gives no signal strength, so for now everyone stays at the
+    /// neutral 0.5 until a real source (like a Bluetooth signal read) feeds it.
     var proximity: Double = 0.5
 
     var id: UUID { user.id }
@@ -30,12 +30,12 @@ struct NearbyPerson: Identifiable, Equatable {
     }
 }
 
-/// Discovers every nearby app user and drives the "Pessoas por perto" grid.
+/// Discovers every nearby app user and keeps the `people` list up to date.
 ///
-/// Built on `MultipeerConnectivity`, which handles the discovery, connections and message delivery for
-/// us. Each device advertises (carrying its name and id) and browses; found peers connect automatically
-/// and send their photo. Tapping a person sends an invite — when two people invite each other
-/// (`onMutualMatch`) they head to the meeting and disconnect, disappearing from the other grids.
+/// Built on `MultipeerConnectivity`, which handles the discovery, the connections and the message
+/// delivery. Each device announces itself with its name and id while searching for others. Found
+/// devices connect automatically and exchange their photos. When two people invite each other,
+/// `onMutualMatch` fires and the pair leaves the radar of everyone else during the meeting.
 @Observable
 final class NearbyManager: NSObject {
 
@@ -48,11 +48,12 @@ final class NearbyManager: NSObject {
     /// This device's profile, shared with every peer.
     let profile: User
 
-    /// `profile.id` captured as a plain string — `User` is a SwiftData model and must not be touched
-    /// from the MultipeerConnectivity delegate queue (only the main thread).
+    /// `profile.id` saved as plain text. `User` is a SwiftData model and can only be read on the
+    /// main thread, so the MultipeerConnectivity callbacks use this copy instead.
     private let ownID: String
 
-    /// Bonjour-style service name; must match the peer app and the `NSBonjourServices` in Info.plist.
+    /// Name of the service announced on the local network. Must match the `NSBonjourServices`
+    /// entry in Info.plist.
     private let serviceType = "conexoes-near"
 
     private var session: MCSession?
@@ -83,8 +84,9 @@ final class NearbyManager: NSObject {
 
     // MARK: - Messages
 
-    /// One discrete message between peers. MultipeerConnectivity delivers each `send` as one `didReceive`.
-    /// `profile` carries name and id so a peer that never saw us in `foundPeer` can still create us.
+    /// One message between two devices. Each `send` arrives as one `didReceive` on the other side.
+    /// The `profile` message carries name and id, so the other side can register us even when it
+    /// never discovered us by itself.
     private struct Packet: Codable {
         enum Kind: String, Codable { case profile, profileRequest, invite, cancel }
         let kind: Kind
@@ -124,7 +126,7 @@ final class NearbyManager: NSObject {
         self.browser = browser
     }
 
-    /// Full teardown — call when the grid screen is left.
+    /// Turns everything off. Call when the screen is left.
     func stop() {
         print("nearby stop")
         advertiser?.stopAdvertisingPeer()
@@ -138,8 +140,8 @@ final class NearbyManager: NSObject {
         people.removeAll()
     }
 
-    /// On a mutual match: stop being discoverable and disconnect (after a beat, so the final invite is
-    /// delivered first) so the pair disappears from other grids during the meeting.
+    /// After a mutual invite, hides the pair from everyone else during the meeting. The disconnect
+    /// waits half a second so the last invite message is delivered first.
     func pauseForMeeting() {
         print("nearby pause (meeting)")
         paused = true
@@ -152,12 +154,13 @@ final class NearbyManager: NSObject {
         }
     }
 
-    /// Back from the meeting — rebuild everything fresh.
+    /// Back from the meeting. Starts everything again from zero.
     func resume() {
         stop()
         start()
     }
 
+    /// Stops and restarts the search, so people seen before can be found again.
     private func restartBrowsing() {
         guard !paused, let browser else { return }
         browser.stopBrowsingForPeers()
@@ -166,7 +169,7 @@ final class NearbyManager: NSObject {
 
     // MARK: - Grid
 
-    /// Rebuilds the published grid from the peer table, closest people first. Called after any change.
+    /// Updates the `people` list shown on screen, closest people first. Called after any change.
     private func rebuildGrid() {
         people = peers.values
             .map { NearbyPerson(user: $0.user, hasPhoto: $0.hasPhoto,
@@ -207,8 +210,8 @@ final class NearbyManager: NSObject {
     }
 
     private func handle(_ packet: Packet, from peerID: MCPeerID) {
-        // A profile from a peer we never saw in `foundPeer` (one-sided discovery) creates the entry,
-        // so whoever can see us always becomes visible to us too.
+        // A profile can arrive from someone we never discovered ourselves. Register them here,
+        // so whoever can see us is always seen by us too.
         if peers[peerID] == nil, packet.kind == .profile, let name = packet.name, let id = packet.userID {
             peers[peerID] = Peer(user: User(name: name, profilePicture: Data(), id: id))
         }
@@ -230,8 +233,8 @@ final class NearbyManager: NSObject {
         checkMutual(peerID, peer)
     }
 
-    /// The photo can get lost when the session comes up right at the edge of range — while it hasn't
-    /// arrived, keep asking for the profile again (mirrors the BLE pairing retry approach).
+    /// The photo can get lost when the connection opens at the edge of the range. While it has
+    /// not arrived, asks for the profile again, up to 3 times.
     private func schedulePhotoRetry(for peerID: MCPeerID, attempt: Int = 1) {
         guard attempt <= 3 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(4 * attempt)) { [weak self] in
@@ -256,7 +259,7 @@ final class NearbyManager: NSObject {
     /// Seeds the grid with fake people so the UI can be exercised on a single device.
     func injectMockPeople() {
         let picture = UIImage(named: "defaultPicture")?.jpegData(compressionQuality: 0.8) ?? Data()
-        for (name, proximity) in [("Osmar", 0.9), ("Ed Sheeran", 0.75), ("Laura", 0.55),
+        for (name, proximity) in [("Osmar", 0.4), ("Ed Sheeran", 0.4), ("Laura", 0.4),
                                   ("Juliana", 0.35), ("Thais", 0.15)] {
             let peerID = MCPeerID(displayName: name)
             guard peers[peerID] == nil else { continue }
@@ -274,8 +277,8 @@ final class NearbyManager: NSObject {
 // MARK: - MCNearbyServiceBrowserDelegate (discovery)
 
 extension NearbyManager: MCNearbyServiceBrowserDelegate {
-    // Browser/advertiser delegates arrive on MC's own queue — every handler hops to the main thread
-    // before touching `peers`/`people` (observed by SwiftUI) or anything SwiftData-backed.
+    // These callbacks arrive on a background thread. Every handler moves to the main thread first,
+    // because `peers`, `people` and the SwiftData models can only be touched there.
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID,
                  withDiscoveryInfo info: [String: String]?) {
         DispatchQueue.main.async { [weak self] in
@@ -284,12 +287,13 @@ extension NearbyManager: MCNearbyServiceBrowserDelegate {
             else { return }
             self.peers[peerID] = Peer(user: User(name: name, profilePicture: Data(), id: id))
             self.rebuildGrid()
-            // Tie-breaker so only one side invites; the other auto-accepts. One connection per pair.
+            // Only the side with the smaller id invites and the other accepts, keeping a single
+            // connection per pair.
             if self.ownID < peerID.displayName, let session = self.session {
                 self.browser?.invitePeer(peerID, to: session, withContext: nil, timeout: 15)
             } else {
-                // The lower-id side may never have discovered us (one-sided discovery) — after a grace
-                // period, invite from this side too so the pair still connects.
+                // The other side may have never found us. If nothing connected after a while,
+                // invite from this side too so the pair still connects.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
                     guard let self, !self.paused, self.peers[peerID] != nil,
                           self.session?.connectedPeers.contains(peerID) != true,
@@ -303,7 +307,8 @@ extension NearbyManager: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            // Browsers flap; while the session is alive the person is still there.
+            // The search sometimes reports a lost person by mistake. While the connection is
+            // alive, the person is still there.
             guard self.session?.connectedPeers.contains(peerID) != true else { return }
             self.peers[peerID] = nil
             self.rebuildGrid()
@@ -318,8 +323,8 @@ extension NearbyManager: MCNearbyServiceAdvertiserDelegate {
                     didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?,
                     invitationHandler: @escaping (Bool, MCSession?) -> Void) {
         DispatchQueue.main.async { [weak self] in
-            // Accepting with a nil session (a teardown can race the invitation) throws an
-            // Objective-C exception inside MC and crashes — decline instead.
+            // Accepting without a session crashes the app. It can happen when an invitation
+            // arrives in the middle of a stop, so decline instead.
             guard let self, let session = self.session, !self.paused else {
                 invitationHandler(false, nil)
                 return
@@ -343,8 +348,8 @@ extension NearbyManager: MCSessionDelegate {
             case .notConnected:
                 self.peers[peerID] = nil
                 self.rebuildGrid()
-                // MC only fires `foundPeer` once per browsing session — restart browsing so anyone
-                // still in range is rediscovered and reconnects instead of staying invisible.
+                // Multipeer only reports each found person once per search. Restart the search so
+                // anyone still around is found and connected again.
                 self.restartBrowsing()
             default:
                 break

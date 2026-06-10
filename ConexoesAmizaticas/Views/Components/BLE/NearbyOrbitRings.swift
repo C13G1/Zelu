@@ -7,10 +7,9 @@
 
 import SwiftUI
 
-/// The orbit field behind the "Pessoas por perto" radar: three concentric rings of dots slowly
-/// orbiting the own avatar. Dots shrink and fade with the distance — big and bright on the inner
-/// ring, small and dim on the outer one. Only the upper half of each ring is on screen, so the
-/// dots keep drifting in from one side and out the other.
+/// The animated background of the radar: three rings of dots slowly turning around the own avatar.
+/// The dots get smaller and darker from the inner ring to the outer one. Only the top half of each
+/// ring fits on screen, so the dots enter on one side and leave on the other.
 struct NearbyOrbitRings: View {
     let center: CGPoint
     let radii: [CGFloat]
