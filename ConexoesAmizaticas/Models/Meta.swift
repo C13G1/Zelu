@@ -11,11 +11,17 @@ import Foundation
 enum Meta: String, Codable {
     case nenhuma   = "nenhuma"
     case semanal   = "semanal"
-    case quinzenal = "quizenal"
+    case quinzenal = "quinzenal"
     case mensal    = "mensal"
     case bimestral = "bimestral"
     case semestral = "semestral"
     case anual     = "anual"
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        // "quizenal" era o rawValue (com typo) persistido por versões antigas
+        self = Meta(rawValue: raw) ?? (raw == "quizenal" ? .quinzenal : .nenhuma)
+    }
 
     var displayText: String {
         switch self {
