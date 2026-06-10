@@ -32,16 +32,16 @@ class NearbyPeopleViewModel {
 
     private let manager: NearbyManager
 
-    /// Positions available on each ring, in degrees (270 = straight up). Outer rings use a
-    /// narrower arc so the avatars never leave the sides of the screen.
-    private static let angleSlots: [[Double]] = [
-        [240, 300, 270, 215, 325],
-        [256, 284, 270, 242, 298],
-        [263, 277, 270]
-    ]
+    /// Distance from the center to each ring, as a fraction of the space between the own avatar
+    /// and the top of the people area.
+    private static let ringDistanceFractions: [CGFloat] = [0.45, 0.70, 0.95]
 
-    /// Size of each ring, as a fraction of the space between the own avatar and the top.
-    private static let radiusFractions: [CGFloat] = [0.40, 0.67, 0.94]
+    /// The inner ring never gets closer to the center than this, so it stays visible around the
+    /// own avatar even on small screens.
+    private static let minimumInnerDistance: CGFloat = 130
+
+    /// Space between people on the same ring, in degrees, while the ring is not crowded.
+    private static let groupedSpacing: Double = 40
 
     init(profile: User) {
         self.profile = profile
@@ -77,32 +77,48 @@ class NearbyPeopleViewModel {
 
     // MARK: - Ring layout
 
-    /// The radius of each ring, where `field` is the distance between the center of the own
-    /// avatar and the top of the people area.
-    func ringRadii(field: CGFloat) -> [CGFloat] {
-        Self.radiusFractions.map { $0 * field }
+    /// How far each ring sits from the center of the own avatar, where `field` is the distance
+    /// between that center and the top of the people area.
+    func ringDistances(field: CGFloat) -> [CGFloat] {
+        Self.ringDistanceFractions.map { max($0 * field, Self.minimumInnerDistance) }
     }
 
-    /// Gives every person a position on the radar. The closest people go to the inner ring and
-    /// each ring fills its positions in order. When a ring is full, the person goes to the next one.
-    func placedPeople(center: CGPoint, radii: [CGFloat]) -> [PlacedPerson] {
+    /// Gives every person a position on the radar. The closest people go to the inner ring.
+    /// While a ring has few people they stay grouped near the top. When it gets crowded, the
+    /// people spread around the whole circle and `rotation` (driven by the drag gesture on the
+    /// screen) spins them, so the ones outside the screen can be brought into view.
+    func placedPeople(center: CGPoint, ringDistances: [CGFloat], rotation: Double) -> [PlacedPerson] {
         let people = manager.people
-        var slotCursor = [0, 0, 0]
+        guard !people.isEmpty else { return [] }
 
-        return people.enumerated().map { index, person in
-            var ring = people.count == 1 ? 0 : index * 3 / people.count
-            while slotCursor[ring] >= Self.angleSlots[ring].count {
-                ring = (ring + 1) % 3
-            }
-            let angle = Self.angleSlots[ring][slotCursor[ring]] * .pi / 180
-            slotCursor[ring] += 1
-
-            return PlacedPerson(
-                person: person,
-                point: CGPoint(x: center.x + cos(angle) * radii[ring],
-                               y: center.y + sin(angle) * radii[ring])
-            )
+        var rings: [[NearbyPerson]] = [[], [], []]
+        for (index, person) in people.enumerated() {
+            let ring = people.count == 1 ? 0 : index * 3 / people.count
+            rings[ring].append(person)
         }
+
+        var placed: [PlacedPerson] = []
+        for (ring, ringPeople) in rings.enumerated() {
+            let fullCircleSpacing = 360.0 / Double(max(ringPeople.count, 1))
+            for (position, person) in ringPeople.enumerated() {
+                let degrees: Double
+                if fullCircleSpacing >= Self.groupedSpacing {
+                    // Few people: alternate to the left and to the right of the top.
+                    let step = Double((position + 1) / 2) * Self.groupedSpacing
+                    degrees = 270 + rotation + (position.isMultiple(of: 2) ? -step : step)
+                } else {
+                    // Crowded: spread evenly around the whole circle.
+                    degrees = 270 + rotation + Double(position) * fullCircleSpacing
+                }
+                let angle = degrees * .pi / 180
+                placed.append(PlacedPerson(
+                    person: person,
+                    point: CGPoint(x: center.x + cos(angle) * ringDistances[ring],
+                                   y: center.y + sin(angle) * ringDistances[ring])
+                ))
+            }
+        }
+        return placed
     }
 
     #if DEBUG

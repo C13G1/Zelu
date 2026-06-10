@@ -256,14 +256,20 @@ final class NearbyManager: NSObject {
     }
 
     #if DEBUG
-    /// Seeds the grid with fake people so the UI can be exercised on a single device.
+    /// Counts the batches of fake people already added, to keep their names unique.
+    private var mockBatch = 0
+
+    /// Adds five fake people to the radar so the UI can be tested on a single device. Every call
+    /// adds a new batch, so tapping the button repeatedly tests a crowded radar.
     func injectMockPeople() {
+        mockBatch += 1
+        let suffix = mockBatch == 1 ? "" : " \(mockBatch)"
         let picture = UIImage(named: "defaultPicture")?.jpegData(compressionQuality: 0.8) ?? Data()
         for (name, proximity) in [("Osmar", 0.4), ("Ed Sheeran", 0.4), ("Laura", 0.4),
                                   ("Juliana", 0.35), ("Thais", 0.15)] {
-            let peerID = MCPeerID(displayName: name)
+            let peerID = MCPeerID(displayName: name + suffix)
             guard peers[peerID] == nil else { continue }
-            let peer = Peer(user: User(name: name, profilePicture: picture))
+            let peer = Peer(user: User(name: name + suffix, profilePicture: picture))
             peer.hasPhoto = true
             peer.isMock = true
             peer.proximity = proximity

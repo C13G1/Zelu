@@ -12,7 +12,8 @@ import SwiftUI
 /// ring fits on screen, so the dots enter on one side and leave on the other.
 struct NearbyOrbitRings: View {
     let center: CGPoint
-    let radii: [CGFloat]
+    /// Distance from the center to each ring, inner ring first.
+    let ringDistances: [CGFloat]
 
     @State private var spinning = false
 
@@ -23,8 +24,8 @@ struct NearbyOrbitRings: View {
 
     var body: some View {
         ZStack {
-            ForEach(radii.indices, id: \.self) { ring in
-                let radius = radii[ring]
+            ForEach(ringDistances.indices, id: \.self) { ring in
+                let distance = ringDistances[ring]
 
                 ZStack {
                     ForEach(0..<Self.dotCounts[ring], id: \.self) { i in
@@ -32,7 +33,7 @@ struct NearbyOrbitRings: View {
                         Circle()
                             .fill(Color(white: 0.8).opacity(Self.dotOpacities[ring]))
                             .frame(width: Self.dotSizes[ring], height: Self.dotSizes[ring])
-                            .offset(x: cos(angle) * radius, y: sin(angle) * radius)
+                            .offset(x: cos(angle) * distance, y: sin(angle) * distance)
                     }
                 }
                 .rotationEffect(.degrees(spinning ? (ring.isMultiple(of: 2) ? 360 : -360) : 0))

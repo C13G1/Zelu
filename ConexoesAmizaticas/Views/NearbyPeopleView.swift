@@ -14,6 +14,11 @@ import SwiftUI
 struct NearbyPeopleView: View {
     @State private var viewModel: NearbyPeopleViewModel
 
+    /// How much the user has spun the rings, in degrees. Dragging sideways changes it.
+    @State private var rotation: Double = 0
+    /// The rotation at the moment the current drag started.
+    @State private var rotationAtDragStart: Double?
+
     /// Distance from the bottom of the screen to the center of the own avatar.
     private let ownAvatarOffset: CGFloat = 92
     /// Space kept clear at the top so people on the outer ring stay fully visible.
@@ -29,11 +34,14 @@ struct NearbyPeopleView: View {
 
             GeometryReader { geo in
                 let center = CGPoint(x: geo.size.width / 2, y: geo.size.height - ownAvatarOffset)
-                let radii = viewModel.ringRadii(field: center.y - topInset)
+                let ringDistances = viewModel.ringDistances(field: center.y - topInset)
+                let placedPeople = viewModel.placedPeople(center: center,
+                                                          ringDistances: ringDistances,
+                                                          rotation: rotation)
 
-                NearbyOrbitRings(center: center, radii: radii)
+                NearbyOrbitRings(center: center, ringDistances: ringDistances)
 
-                ForEach(viewModel.placedPeople(center: center, radii: radii), id: \.person.id) { placed in
+                ForEach(placedPeople, id: \.person.id) { placed in
                     NearbyPersonCell(person: placed.person) {
                         viewModel.toggleInvite(for: placed.person)
                     }
@@ -52,6 +60,7 @@ struct NearbyPeopleView: View {
                 emptyState
             }
         }
+        .gesture(spinGesture)
         .navigationTitle("Pessoas por perto")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.bleBackground, for: .navigationBar)
@@ -78,6 +87,17 @@ struct NearbyPeopleView: View {
             #endif
         }
         .onDisappear { viewModel.stop() }
+    }
+
+    /// Spins the rings like a dial: dragging sideways rotates everyone around the own avatar, so
+    /// people outside the screen can be brought into view. Taps still reach the person cells.
+    private var spinGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                if rotationAtDragStart == nil { rotationAtDragStart = rotation }
+                rotation = (rotationAtDragStart ?? rotation) + value.translation.width * 0.35
+            }
+            .onEnded { _ in rotationAtDragStart = nil }
     }
 
     /// Shows the meeting screen while there is a matched friend. Resumes the radar on the way back.
