@@ -81,17 +81,7 @@ struct TabBar: View {
 //                }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, width * 0.38) 
-        }
-        .navigationDestination(for: AppRoute.self) { route in
-            switch route {
-            case .search:
-                SearchView(viewModel: $viewModel, navigation: $navigation)
-            case .ble:
-                BLEView(profile: viewModel.profile)
-            case .setMeta(_):
-                EmptyView()
-            }
+            .padding(.bottom, width * 0.38)
         }
     }
 }
