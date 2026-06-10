@@ -17,8 +17,8 @@ struct NearbyPerson: Identifiable, Equatable {
     var sentInvite: Bool = false
     var receivedInvite: Bool = false
     /// How close this person is, from 0 to 1 (1 = right next to you). The radar uses this to pick
-    /// the ring. MultipeerConnectivity gives no signal strength, so for now everyone stays at the
-    /// neutral 0.5 until a real source (like a Bluetooth signal read) feeds it.
+    /// the ring. Fed by the Bluetooth distance estimate of `NearbyProximityScanner`; stays at the
+    /// neutral 0.5 while no reading arrived.
     var proximity: Double = 0.5
 
     var id: UUID { user.id }
@@ -38,6 +38,17 @@ struct NearbyPerson: Identifiable, Equatable {
 /// `onMutualMatch` fires and the pair leaves the radar of everyone else during the meeting.
 @Observable
 final class NearbyManager: NSObject {
+
+    /// DISTANCE LIMIT OF THE RADAR, in meters. People estimated farther than this do not appear.
+    ///
+    /// This is the number to play with: 5 keeps only people right around you, 10 covers a small
+    /// room, 15 a classroom, 30 a whole floor. It also calibrates the rings — someone right next
+    /// to you lands on the inner ring and someone at this limit on the outer one.
+    ///
+    /// The distance comes from the Bluetooth signal strength and is a rough estimate: walls,
+    /// pockets and bodies in between make people look farther than they are. People whose
+    /// distance could not be measured yet always appear (middle ring).
+    static let maxVisibleDistanceMeters: Double = 15
 
     /// The people currently nearby. Bound directly to the grid.
     private(set) var people: [NearbyPerson] = []
@@ -59,6 +70,8 @@ final class NearbyManager: NSObject {
     private var session: MCSession?
     private var advertiser: MCNearbyServiceAdvertiser?
     private var browser: MCNearbyServiceBrowser?
+    /// Measures, over Bluetooth, how far each discovered person is.
+    private let proximityScanner: NearbyProximityScanner
     /// True between `pauseForMeeting()` and `resume()`.
     private var paused = false
 
@@ -68,9 +81,11 @@ final class NearbyManager: NSObject {
         var hasPhoto = false
         var iInvited = false
         var theyInvited = false
-        var didMatch = false
         var isMock = false
+        var didMatch = false
         var proximity: Double = 0.5
+        /// Last estimated distance in meters. Stays nil while no Bluetooth reading arrived.
+        var distanceMeters: Double?
         init(user: User) { self.user = user }
     }
 
@@ -79,6 +94,7 @@ final class NearbyManager: NSObject {
     init(profile: User) {
         self.profile = profile
         self.ownID = profile.id.uuidString
+        self.proximityScanner = NearbyProximityScanner(ownID: profile.id.uuidString)
         super.init()
     }
 
@@ -124,11 +140,17 @@ final class NearbyManager: NSObject {
         browser.delegate = self
         browser.startBrowsingForPeers()
         self.browser = browser
+
+        proximityScanner.onDistanceReading = { [weak self] userID, meters in
+            self?.updateDistance(userIDStart: userID, meters: meters)
+        }
+        proximityScanner.start()
     }
 
     /// Turns everything off. Call when the screen is left.
     func stop() {
         print("nearby stop")
+        proximityScanner.stop()
         advertiser?.stopAdvertisingPeer()
         browser?.stopBrowsingForPeers()
         session?.disconnect()
@@ -145,6 +167,7 @@ final class NearbyManager: NSObject {
     func pauseForMeeting() {
         print("nearby pause (meeting)")
         paused = true
+        proximityScanner.stop()
         advertiser?.stopAdvertisingPeer()
         browser?.stopBrowsingForPeers()
         people.removeAll()
@@ -167,11 +190,41 @@ final class NearbyManager: NSObject {
         browser.startBrowsingForPeers()
     }
 
+    // MARK: - Distance
+
+    /// Applies a fresh Bluetooth distance reading to the matching peer. The announced id can
+    /// arrive cut short, so it is matched as the beginning of the full peer id.
+    private func updateDistance(userIDStart: String, meters: Double) {
+        guard userIDStart.count >= 8,
+              let peer = peers.first(where: { $0.key.displayName.hasPrefix(userIDStart) })?.value
+        else { return }
+
+        let wasVisible = peer.distanceMeters.map { $0 <= Self.maxVisibleDistanceMeters } ?? true
+        let previousMeters = peer.distanceMeters
+        peer.distanceMeters = meters
+        // Closeness used by the rings: 1 right next to you, 0 at the visibility limit.
+        peer.proximity = max(0, min(1, 1 - meters / Self.maxVisibleDistanceMeters))
+
+        // Readings arrive several times per second. Only redraw the radar when the person
+        // appeared, disappeared or moved a noticeable amount.
+        let isVisible = meters <= Self.maxVisibleDistanceMeters
+        if wasVisible != isVisible || abs((previousMeters ?? .zero) - meters) > 0.5 {
+            rebuildGrid()
+        }
+    }
+
     // MARK: - Grid
 
-    /// Updates the `people` list shown on screen, closest people first. Called after any change.
+    /// Updates the `people` list shown on screen, closest people first. People measured farther
+    /// than `maxVisibleDistanceMeters` are left out. Called after any change.
     private func rebuildGrid() {
         people = peers.values
+            .filter { peer in
+                // Without a reading the person stays visible: the estimate may never come, for
+                // example when Bluetooth is off on either side.
+                guard let meters = peer.distanceMeters else { return true }
+                return meters <= Self.maxVisibleDistanceMeters
+            }
             .map { NearbyPerson(user: $0.user, hasPhoto: $0.hasPhoto,
                                 sentInvite: $0.iInvited, receivedInvite: $0.theyInvited,
                                 proximity: $0.proximity) }
