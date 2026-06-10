@@ -21,7 +21,11 @@ struct BLEView: View {
     @Query private var existingConnections: [Connection]
 
     @State private var viewModel: BLEViewModel
-
+    /// Drives the avatar "wrong passcode" shake when a press is rejected during the meeting cooldown.
+    @State private var cooldownShakeCount = 0
+    /// Limits the shake/haptic to one per press — `DragGesture.onChanged` fires continuously.
+    @State private var didShakeForCooldown = false
+    
     private let avatarDiameter: CGFloat = 132
 
     init(profile: User) {
@@ -67,7 +71,8 @@ struct BLEView: View {
                         avatarDiameter: avatarDiameter,
                         topY: topY,
                         bottomY: bottomY,
-                        isDimmed: isMatchedOnCooldown
+                        isDimmed: isMatchedOnCooldown,
+                        shakeTrigger: cooldownShakeCount
                     )
                     .zIndex(1)
                     .compositingGroup()
@@ -354,8 +359,17 @@ struct BLEView: View {
     private var holdGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { _ in
-                // Already met within the cooldown — block confirming, only "search again" is allowed.
-                guard viewModel.phase == .matched, !isMatchedOnCooldown else { return }
+                guard viewModel.phase == .matched else { return }
+                // Already met within the cooldown — block confirming and reject the press with a
+                // "wrong passcode" shake plus error haptic; only "search again" is allowed.
+                if isMatchedOnCooldown {
+                    if !didShakeForCooldown {
+                        didShakeForCooldown = true
+                        withAnimation(.linear(duration: 0.45)) { cooldownShakeCount += 1 }
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    }
+                    return
+                }
                 if !viewModel.isHolding {
                     viewModel.isHolding = true
                     viewModel.startHold()
