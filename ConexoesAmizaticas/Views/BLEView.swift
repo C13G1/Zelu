@@ -391,6 +391,7 @@ struct BLEView: View {
                 }
             }
             .onEnded { _ in
+                didShakeForCooldown = false
                 guard viewModel.isHolding else { return }
                 viewModel.isHolding = false
                 viewModel.endHold(

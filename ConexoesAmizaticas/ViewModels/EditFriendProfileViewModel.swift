@@ -34,17 +34,6 @@ class EditFriendProfileViewModel {
         self.modelContext = modelContext
     }
 
-//    /// Persists name and photo back to the friend, saves the context and broadcasts the update.
-//    func saveChanges(modelContext: ModelContext) {
-//        let trimmed = name.trimmingCharacters(in: .whitespaces)
-//        connection.friend.editName(trimmed)
-//        if let data = profileImageData {
-//            connection.friend.editProfileImageData(data)
-//        }
-//        try? modelContext.save()
-//        NotificationCenter.default.post(name: .friendProfileUpdated, object: nil)
-//    }
-    
     /// Saves the typed name to the profile or clamps it back to the character limit when needed.
     func commitName() {
         if name.count > characterLimit {
@@ -53,13 +42,15 @@ class EditFriendProfileViewModel {
         }
         connection.friend.editName(name)
         try? modelContext.save()
+        NotificationCenter.default.post(name: .friendProfileUpdated, object: nil)
     }
-    
+
     /// Loads the newly picked photo asynchronously and persists it on the profile.
     func commitSelectedPhoto() async {
         guard let item = selectedPhoto,
               let data = try? await item.loadTransferable(type: Data.self) else { return }
         connection.friend.editProfileImageData(data)
         try? modelContext.save()
+        NotificationCenter.default.post(name: .friendProfileUpdated, object: nil)
     }
 }
