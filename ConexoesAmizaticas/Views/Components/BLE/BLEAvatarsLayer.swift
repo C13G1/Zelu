@@ -20,7 +20,10 @@ struct BLEAvatarsLayer: View {
     /// Washes the avatars with a faint white veil to read as "disabled" — used when the matched friend
     /// is on cooldown and the encounter can't be registered.
     var isDimmed: Bool = false
-
+    /// Incremented by the parent to play one "wrong passcode" shake on the avatars — used to reject
+    /// a press while the matched friend is on cooldown.
+    var shakeTrigger: Int = 0
+    
     var body: some View {
         let centerX = size.width / 2
 
@@ -47,9 +50,25 @@ struct BLEAvatarsLayer: View {
             .overlay(dimVeil)
             .position(x: centerX, y: bottomY)
         }
+        .modifier(ShakeEffect(animatableData: CGFloat(shakeTrigger)))
     }
 
     private var dimVeil: some View {
         Circle().fill(Color.white.opacity(isDimmed ? 0.3 : 0))
+    }
+}
+
+/// Horizontal "wrong passcode" shake: each unit step of `animatableData` plays `shakesPerUnit`
+/// full left-right oscillations, so animating an `Int` trigger by 1 yields one complete shake.
+private struct ShakeEffect: GeometryEffect {
+    var travelDistance: CGFloat = 9
+    var shakesPerUnit: CGFloat = 3
+    var animatableData: CGFloat
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(
+            translationX: travelDistance * sin(animatableData * .pi * 2 * shakesPerUnit),
+            y: 0
+        ))
     }
 }

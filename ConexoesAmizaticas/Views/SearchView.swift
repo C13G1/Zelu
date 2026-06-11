@@ -48,9 +48,6 @@ struct SearchView: View {
             text: $bindable.searchText,
             placement: .navigationBarDrawer(displayMode: .always)
         )
-        .navigationDestination(for: Connection.self) { value in
-            FriendsProfileView(connection: value)
-        }
         .onAppear {
             scene.updateConnections(receivedConnections: Set(connections))
             scene.onFriendTapped = { connection in
