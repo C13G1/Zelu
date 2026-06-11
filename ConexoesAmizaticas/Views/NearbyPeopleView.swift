@@ -56,9 +56,6 @@ struct NearbyPeopleView: View {
                     .position(center)
             }
 
-            if viewModel.people.isEmpty {
-                emptyState
-            }
         }
         .gesture(spinGesture)
         .navigationTitle("Pessoas por perto")
@@ -108,15 +105,5 @@ struct NearbyPeopleView: View {
                 if !presented { viewModel.resumeAfterMeeting() }
             }
         )
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            ProgressView().tint(.white)
-            Text("Procurando pessoas por perto...")
-                .font(.custom("Sora-Regular", size: 15))
-                .foregroundStyle(.white.opacity(0.7))
-        }
-        .padding(.bottom, 180)
     }
 }
