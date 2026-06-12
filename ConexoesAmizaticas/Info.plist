@@ -18,6 +18,13 @@
 	<string>O Zelu usa Bluetooth para detectar amigos por perto e trocar perfis.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>O Zelu precisa acessar suas fotos para você escolher uma foto de perfil.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>O Zelu usa a rede local para detectar amigos por perto.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_conexoes-near._tcp</string>
+		<string>_conexoes-near._udp</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

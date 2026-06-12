@@ -16,80 +16,80 @@ import SwiftData
 struct EditFriendProfileView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @State private var viewModel: EditFriendProfileViewModel
+    @State private var viewModel: EditFriendProfileViewModel?
+    @FocusState private var isNameFocused: Bool
+    
+    var width = UIScreen.main.bounds.width
+    var height = UIScreen.main.bounds.height
 
     init(connection: Connection) {
-        _viewModel = State(initialValue: EditFriendProfileViewModel(connection: connection))
+        _viewModel = State(initialValue: EditFriendProfileViewModel(connection: connection, modelContext: modelContext))
     }
 
     var body: some View {
-        @Bindable var bindable = viewModel
+        if let viewModel {
+            @Bindable var bindable = viewModel
 
-        VStack(spacing: 32) {
-            PhotosPicker(selection: $bindable.selectedPhoto, matching: .images) {
+            VStack(spacing: 32) {
                 ZStack {
-                    Circle()
-                        .frame(width: 120, height: 120)
-                        .foregroundStyle(.gray.opacity(0.15))
-                    if let data = viewModel.profileImageData, let uiImage = UIImage(data: data) {
+                    if let uiImage = UIImage(data: viewModel.connection.friend.profilePicture) {
                         Image(uiImage: uiImage)
                             .resizable()
                             .scaledToFill()
+                            .frame(width: width * 0.75, height: width * 0.75)
                             .clipShape(Circle())
-                            .frame(width: 120, height: 120)
-                    } else {
-                        Image(systemName: "person.crop.circle.badge.plus")
-                            .font(.system(size: 44))
-                            .foregroundStyle(.gray)
                     }
-                    
-                    ZStack {
-                        Circle()
-                            .frame(width: UIScreen.main.bounds.width * 0.09, height: UIScreen.main.bounds.width * 0.1)
-                            .foregroundStyle(.gray)
-                        
+
+                    PhotosPicker(selection: $bindable.selectedPhoto, matching: .images, photoLibrary: .shared()) {
                         Image(systemName: "pencil")
-                            .font(.title2)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.lightBackground)
+                            .font(.title)
+                            .padding(8)
+                            .background(Color.green)
+                            .cornerRadius(100)
                     }
-                    .padding(.top, UIScreen.main.bounds.height * 0.1)
-                    .padding(.leading, UIScreen.main.bounds.height * 0.1)
+                    .padding(.leading, width * 0.45)
+                    .padding(.top, height * 0.28)
                 }
-            }
-            .onChange(of: viewModel.selectedPhoto) { _, _ in
-                Task { await viewModel.loadSelectedPhoto() }
-            }
-
-            TextField("Nome do amigo", text: $bindable.name)
-                .font(.custom("Bolota", size: 24))
-                .padding()
-                .background(.gray.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 40)
-                .onChange(of: viewModel.name) { _, _ in
-                    viewModel.enforceCharacterLimit()
+                .onChange(of: viewModel.selectedPhoto) { _, _ in
+                    Task { await viewModel.commitSelectedPhoto() }
                 }
 
-        }
-        .padding(.top, 40)
-        .background(.lightBackground)
-        .navigationTitle("Editar Amigo")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Salvar") {
-                    viewModel.saveChanges(modelContext: modelContext)
-                    dismiss()
+                VStack(spacing: 2) {
+                    TextField("Amigo", text: $bindable.name)
+                        .font(.custom("Bolota", size: 48))
+                        .multilineTextAlignment(.center)
+                        .focused($isNameFocused)
+                        .onChange(of: viewModel.name) { _, _ in
+                            viewModel.commitName()
+                        }
+                        .onSubmit { isNameFocused = false }
+
+                    Capsule()
+                        .frame(width: width * 0.75, height: 5)
                 }
-                .disabled(!viewModel.canSave)
             }
+            .foregroundStyle(.black)
+            .onTapGesture { isNameFocused = false }
+        } else {
+            Color.clear
         }
     }
 }
 
 #Preview {
-    NavigationStack {
-        EditFriendProfileView(connection: Connection(friend: User(name: "Juliana")))
-    }
-    .modelContainer(for: AppSchema.models, inMemory: true)
+    let mockConnection: Connection = {
+        let mockImage = UIImage(named: "gallery") ?? UIImage()
+        let mockData = mockImage.pngData() ?? Data()
+        let c = Connection(friend: User(name: "Juliana"))
+        
+        for _ in 0..<5 {
+            let post = Post(images: [mockData])
+            c.feedManager.addPost(post)
+        }
+        
+        return c
+    }()
+    
+    EditFriendProfileView(connection: mockConnection)
 }

@@ -54,9 +54,23 @@ class BLEViewModel {
     private var holdTimer: Timer?
     var blNotificationManager: BluetoothNotificationManager
 
-    init(profile: User) {
+    /// When set, the friend was already discovered (via the "Pessoas por perto" grid), so this screen
+    /// skips BLE entirely and opens straight in the matched state to confirm the encounter.
+    private let presetFriend: User?
+    var isPreset: Bool { presetFriend != nil }
+
+    init(profile: User, presetFriend: User? = nil) {
         self.profile = profile
+        self.presetFriend = presetFriend
         self.blNotificationManager = BluetoothNotificationManager()
+    }
+
+    /// Enters the matched state directly with the preset friend, without any BLE discovery.
+    func startPreset() {
+        guard let presetFriend else { return }
+        friend = presetFriend
+        foundFriend = true
+        tryTransitionToMatched()
     }
 
     // MARK: - BLE lifecycle
@@ -236,16 +250,25 @@ class BLEViewModel {
         }
         let connection: Connection
         if let existing = existingConnections.first(where: { $0.friend.id == friend.id }) {
-            existing.lastMet = Date.now
-            existing.metaManager.addOrSubtractScore(10)
+            // Only score and stamp the meeting once the 24h cooldown has elapsed, so repeated
+            // encounters on the same day still confirm visually but cannot level the friendship up.
+            if existing.canRegisterMeeting {
+                existing.lastMet = Date.now
+                existing.metaManager.addOrSubtractScore(10)
+                Aptabase.shared.trackEvent("meeting_registered", with: [
+                    "relationship_state": existing.metaManager.currentRelationshipState.rawValue,
+                    "score": existing.metaManager.score
+                ])
+            } else {
+                Aptabase.shared.trackEvent("meeting_on_cooldown", with: [
+                    "relationship_state": existing.metaManager.currentRelationshipState.rawValue,
+                    "score": existing.metaManager.score
+                ])
+            }
             connection = existing
-            Aptabase.shared.trackEvent("meeting_registered", with: [
-                "relationship_state": existing.metaManager.currentRelationshipState.rawValue,
-                "score": existing.metaManager.score
-            ])
         } else {
             modelContext.insert(friend)
-            let newConnection = Connection(friend: friend)
+            let newConnection = Connection(friend: friend, lastMet: .now)
             modelContext.insert(newConnection)
             connection = newConnection
             Aptabase.shared.trackEvent("friend_added")

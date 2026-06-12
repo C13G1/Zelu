@@ -34,6 +34,18 @@ class Connection: Hashable {
     var timeSinceLastMet: TimeInterval {
         Date.now.timeIntervalSince(lastMet ?? Date.now)
     }
+
+    /// Minimum interval between scored meetings with the same friend.
+    ///
+    /// A 24h cooldown stops a single day of repeated encounters from rocketing the friendship to its
+    /// maximum level: meetings registered before it elapses still confirm visually but do not add score.
+    static let meetingCooldown: TimeInterval = 24 * 60 * 60
+
+    /// Whether enough time has passed since the last scored meeting to register a new scoring meeting.
+    var canRegisterMeeting: Bool {
+        guard let lastMet else { return true }
+        return Date.now.timeIntervalSince(lastMet) >= Connection.meetingCooldown
+    }
     
     var recordNotMeet: TimeInterval? {
         guard let lastMet = lastMet else { return nil }

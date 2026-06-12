@@ -21,11 +21,15 @@ struct BLEView: View {
     @Query private var existingConnections: [Connection]
 
     @State private var viewModel: BLEViewModel
-
+    /// Drives the avatar "wrong passcode" shake when a press is rejected during the meeting cooldown.
+    @State private var cooldownShakeCount = 0
+    /// Limits the shake/haptic to one per press — `DragGesture.onChanged` fires continuously.
+    @State private var didShakeForCooldown = false
+    
     private let avatarDiameter: CGFloat = 132
 
-    init(profile: User) {
-        _viewModel = State(initialValue: BLEViewModel(profile: profile))
+    init(profile: User, presetFriend: User? = nil) {
+        _viewModel = State(initialValue: BLEViewModel(profile: profile, presetFriend: presetFriend))
     }
 
     var body: some View {
@@ -66,12 +70,14 @@ struct BLEView: View {
                         phase: viewModel.phase,
                         avatarDiameter: avatarDiameter,
                         topY: topY,
-                        bottomY: bottomY
+                        bottomY: bottomY,
+                        isDimmed: isMatchedOnCooldown,
+                        shakeTrigger: cooldownShakeCount
                     )
                     .zIndex(1)
                     .compositingGroup()
 
-                    if viewModel.blNotificationManager.accessState == .ready {
+                    if viewModel.isPreset || viewModel.blNotificationManager.accessState == .ready {
                         textLayer(in: geo.size)
                             .allowsHitTesting(viewModel.phase != .holding)
                     }
@@ -93,6 +99,12 @@ struct BLEView: View {
         .onAppear {
             viewModel.resetSessionState()
             viewModel.onConfirmed = { dismiss() }
+            // Preset mode (came from the nearby grid): the friend is already known, so skip Bluetooth
+            // entirely and open straight in the matched state.
+            if viewModel.isPreset {
+                viewModel.startPreset()
+                return
+            }
             viewModel.refreshBluetoothAccess()
             // The view model (and its Bluetooth state) is retained across visits, so on a second entry
             // `isBluetoothReady` is already true and never changes — `onChange` won't fire. Kick off a
@@ -102,7 +114,7 @@ struct BLEView: View {
             }
         }
         .onChange(of: viewModel.blNotificationManager.isBluetoothReady) { _, isReady in
-            guard isReady else { return }
+            guard isReady, !viewModel.isPreset else { return }
             startSearching()
         }
         .onDisappear { viewModel.stopBLE() }
@@ -119,6 +131,15 @@ struct BLEView: View {
 
     @ViewBuilder
     private var bluetoothAccessOverlay: some View {
+        if viewModel.isPreset {
+            EmptyView()   // preset mode doesn't use Bluetooth, so never gate behind its permission
+        } else {
+            bluetoothAccessOverlayContent
+        }
+    }
+
+    @ViewBuilder
+    private var bluetoothAccessOverlayContent: some View {
         switch viewModel.blNotificationManager.accessState {
         case .needsPermission:
             BLEPermissionOverlay(
@@ -153,6 +174,19 @@ struct BLEView: View {
 
     private var shouldShowLens: Bool {
         viewModel.holdProgress > 0.001 || viewModel.phase == .holding || viewModel.phase == .confirmed
+    }
+
+    /// The saved connection for the currently matched peer, if they're already a friend.
+    private var matchedConnection: Connection? {
+        viewModel.existingConnection(in: existingConnections)
+    }
+
+    /// True when the matched peer is an existing friend met too recently to register again — the cooldown
+    /// (`Connection.meetingCooldown`) hasn't elapsed. Checked here, at match time, so the screen shows the
+    /// "já se encontraram" copy instead of inviting another registration.
+    private var isMatchedOnCooldown: Bool {
+        guard let matchedConnection else { return false }
+        return !matchedConnection.canRegisterMeeting
     }
 
     private var isWhiteMode: Bool {
@@ -205,7 +239,9 @@ struct BLEView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 32)
 
-            if viewModel.phase == .matched, viewModel.showSearchAgainButton {
+            // On cooldown there's nothing to confirm, so offer "search again" right away instead of
+            // after the usual delay.
+            if viewModel.phase == .matched, viewModel.showSearchAgainButton || isMatchedOnCooldown {
                 searchAgainButton
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                     .padding(.top, 8)
@@ -233,7 +269,40 @@ struct BLEView: View {
         .transition(.opacity)
     }
 
+    @ViewBuilder
     private var matchedText: some View {
+        if isMatchedOnCooldown, let friend = viewModel.friend {
+            cooldownText(for: friend)
+        } else {
+            normalMatchedText
+        }
+    }
+
+    /// Shown when the matched friend was already met within the cooldown window. The second line is
+    /// driven by the friend's meeting goal (`Meta.reuniteText`).
+    private func cooldownText(for friend: User) -> some View {
+        VStack(spacing: 14) {
+            Text("Você e \(friend.name) já se encontraram hoje!")
+                .font(
+                    Font.custom("Sora", size: 28)
+                        .weight(.heavy)
+                )
+                .kerning(0.38)
+                .multilineTextAlignment(.center)
+                .foregroundColor(Color(red: 1, green: 1, blue: 0.96))
+                .frame(width: 306, alignment: .top)
+
+            Text(matchedConnection?.metaManager.meta.reuniteText ?? "")
+                .font(Font.custom("Sora", size: 20))
+                .kerning(0.38)
+                .multilineTextAlignment(.center)
+                .foregroundColor(Color(red: 1, green: 1, blue: 0.96))
+                .frame(width: 300, alignment: .top)
+        }
+        .transition(.opacity)
+    }
+
+    private var normalMatchedText: some View {
         let friend = viewModel.friend
         let headline = friend.map { friend in
             viewModel.isExistingFriend(in: existingConnections)
@@ -306,12 +375,23 @@ struct BLEView: View {
         DragGesture(minimumDistance: 0)
             .onChanged { _ in
                 guard viewModel.phase == .matched else { return }
+                // Already met within the cooldown — block confirming and reject the press with a
+                // "wrong passcode" shake plus error haptic; only "search again" is allowed.
+                if isMatchedOnCooldown {
+                    if !didShakeForCooldown {
+                        didShakeForCooldown = true
+                        withAnimation(.linear(duration: 0.45)) { cooldownShakeCount += 1 }
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    }
+                    return
+                }
                 if !viewModel.isHolding {
                     viewModel.isHolding = true
                     viewModel.startHold()
                 }
             }
             .onEnded { _ in
+                didShakeForCooldown = false
                 guard viewModel.isHolding else { return }
                 viewModel.isHolding = false
                 viewModel.endHold(
