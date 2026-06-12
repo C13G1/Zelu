@@ -32,3 +32,4 @@ struct ToolBar: View {
     @Previewable @State var viewModel = InitialViewModel()
     ToolBar(vm: $viewModel)
 }
+

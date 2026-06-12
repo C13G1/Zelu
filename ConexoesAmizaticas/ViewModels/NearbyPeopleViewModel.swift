@@ -111,9 +111,10 @@ class NearbyPeopleViewModel {
                     degrees = 270 + rotation + Double(position) * fullCircleSpacing
                 }
                 let angle = degrees * .pi / 180
+                let angleCos = cos(angle)
                 placed.append(PlacedPerson(
                     person: person,
-                    point: CGPoint(x: center.x + cos(angle) * ringDistances[ring],
+                    point: CGPoint(x: center.x + angleCos * ringDistances[ring],
                                    y: center.y + sin(angle) * ringDistances[ring])
                 ))
             }

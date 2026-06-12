@@ -12,7 +12,7 @@ import UIKit
 ///
 /// The state directly influences the visual representation of the connection in the SpriteKit scene,
 /// determining its orbital radius, movement speed, and color.
-enum RelationshipState: String, Codable {
+enum RelationshipState: String, Codable, CaseIterable {
     case afastados    = "afastados"
     case distantes    = "distantes"
     case estaveis     = "estaveis"
