@@ -22,73 +22,70 @@ struct InitialView: View {
     @State var vm: InitialViewModel = InitialViewModel()
     @State private var showVacuoView: Bool = false
     @State var navigation: NavigationPath = NavigationPath()
-
+    
     @Query private var connections: [Connection]
     @Query private var users: [User]
-
+    
     var currentUser: User { users.first ?? User() }
     var width = UIScreen.main.bounds.width
     var height = UIScreen.main.bounds.height
-
+    
     @State private var scene: FriendsScene = {
         let s = FriendsScene(size: UIScreen.main.bounds.size, connections: Set(), sceneType: .initial)
         s.scaleMode = .aspectFill
         return s
     }()
-
+    
     var body: some View {
         NavigationStack(path: $navigation) {
             ZStack {
                 SpriteView(scene: scene, debugOptions: [])
                     .frame(height: height)
-
+                
                 ZStack {
                     ToolBar(vm: $vm)
                         .padding(.bottom, width * 2.28)
-
-//                    TabBar(viewModel: $vm,user: vm.profile)
-                    TabBar(viewModel: $vm, navigation: $navigation, user: vm.profile)
-                        .padding(.top, width * 2.15)
-                }
-
-                if connections.isEmpty {
-                    ZStack {
-                        VStack(spacing: 20) {
-                            Text("Bem Vindo Ao Zelu")
-                                .font(.custom("Bolota", size: 32))
-
-                            Text("adicione seus amigos\npara iniciar")
-                                .font(.custom("Sora-Regular", size: 20))
-                                .multilineTextAlignment(.center)
-                                .frame(width: width * 0.6)
+                    
+                    if connections.isEmpty {
+                        ZStack {
+                            VStack(spacing: 20) {
+                                Text("Bem Vindo Ao Zelu")
+                                    .font(.custom("Bolota", size: 32))
+                                
+                                Text("adicione seus amigos\npara iniciar")
+                                    .font(.custom("Sora-Regular", size: 20))
+                                    .multilineTextAlignment(.center)
+                                    .frame(width: width * 0.6)
+                            }
+                            .foregroundStyle(.addFriendsText)
+                            
+                            Image("roundArrowAddFriends")
+                                .resizable()
+                                .frame(width: width * 0.22, height: height * 0.1)
+                                .padding(.leading, width * 0.6)
+                                .padding(.top, height * 0.2)
                         }
-                        .foregroundStyle(.addFriendsText)
-
-                        Image("roundArrowAddFriends")
-                            .resizable()
-                            .frame(width: width * 0.22, height: height * 0.1)
-                            .padding(.leading, width * 0.6)
-                            .padding(.top, height * 0.2)
+                        .padding(.top, height * 0.3)
                     }
-                    .padding(.top, height * 0.3)
                 }
-            }
-            // ✅ Todos os destinos centralizados aqui dentro do NavigationStack
-            .navigationDestination(for: Connection.self) { value in
-                FriendsProfileView(connection: value)
-            }
-            .navigationDestination(for: AppRoute.self) { route in
-                switch route {
-                case .search:
-                    SearchView(viewModel: $vm, navigation: $navigation)
-                case .ble:
-                    BLEView(profile: vm.profile)
-                case .setMeta(let friendVM):
-                    SetMetaView(viewModel: friendVM)
-                }
-            }
-            .navigationDestination(isPresented: $showVacuoView) {
-                VacuoView()
+                TabBar(viewModel: $vm, navigation: $navigation, user: vm.profile)
+                    .padding(.top, width * 2.15)
+                    .navigationDestination(for: Connection.self) { value in
+                        FriendsProfileView(connection: value)
+                    }
+                    .navigationDestination(for: AppRoute.self) { route in
+                        switch route {
+                        case .search:
+                            SearchView(viewModel: $vm, navigation: $navigation)
+                        case .ble:
+                            BLEView(profile: vm.profile)
+                        case .setMeta(let friendVM):
+                            SetMetaView(viewModel: friendVM)
+                        }
+                    }
+                    .navigationDestination(isPresented: $showVacuoView) {
+                        VacuoView()
+                    }
             }
         }
         .onAppear {
