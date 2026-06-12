@@ -20,53 +20,53 @@ struct TabBar: View {
     var height = UIScreen.main.bounds.height
     
     var body: some View {
-        VStack {
-            ZStack {
+        VStack(spacing: -1) {
                 SemiCircle()
                     .fill(Color.themeBackground)
                     .frame(width: width, height: 100)
-                
-                HStack {
-                    NavigationLink(value: AppRoute.search) {
-                        ZStack {
-                            Circle()
-                                .frame(width: width * 0.15)
-                                .foregroundStyle(.lightBackground)
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.black)
-                                .font(.title2)
-                                .bold()
+                    .overlay() {
+                        HStack {
+                            NavigationLink(value: AppRoute.search) {
+                                ZStack {
+                                    Circle()
+                                        .frame(width: width * 0.15)
+                                        .foregroundStyle(.lightBackground)
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundStyle(.black)
+                                        .font(.title2)
+                                        .bold()
+                                }
+                                .frame(width: width * 0.19, height: width * 0.19)
+                                .background(.themeBackground)
+                                .cornerRadius(100)                }
+                            
+                            Spacer()
+                            
+                            // Central App Logo
+                            Image("zELu")
+                                .padding(.bottom, height * 0.07)
+                            
+                            Spacer()
+                            
+                            NavigationLink(value: AppRoute.ble) {
+                                ZStack {
+                                    Circle()
+                                        .frame(width: width * 0.15)
+                                        .foregroundStyle(.lightBackground)
+                                    Image(systemName: "person.2.badge.plus.fill")
+                                        .foregroundStyle(.black)
+                                        .font(.title2)
+                                }
+                                .frame(width: width * 0.19, height: width * 0.19)
+                                .background(.themeBackground)
+                                .cornerRadius(100)
+                            }
                         }
-                        .frame(width: width * 0.19, height: width * 0.19)
-                        .background(.themeBackground)
-                        .cornerRadius(100)                }
-                    
-                    Spacer()
-                    
-                    // Central App Logo
-                    Image("zELu")
-                        .padding(.bottom, height * 0.07)
-                    
-                    Spacer()
-                    
-                    NavigationLink(value: AppRoute.ble) {
-                        ZStack {
-                            Circle()
-                                .frame(width: width * 0.15)
-                                .foregroundStyle(.lightBackground)
-                            Image(systemName: "person.2.badge.plus.fill")
-                                .foregroundStyle(.black)
-                                .font(.title2)
-                        }
-                        .frame(width: width * 0.19, height: width * 0.19)
-                        .background(.themeBackground)
-                        .cornerRadius(100)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, width * 0.38)
+                        
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, width * 0.38)
-            }
-            // ❗️❗️❗️❗️❗️Tomas Chame sua view aqui❗️❗️❗️❗️❗️
+            FriendsGroupsView()
         }
         .navigationDestination(for: AppRoute.self) { route in
             switch route {

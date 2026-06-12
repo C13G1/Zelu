@@ -1,5 +1,5 @@
 //
-//  Grups.swift
+//  FriendsGroup.swift
 //  ConexoesAmizaticas
 //
 //  Created by Jonas Fernando Nascimento Melo on 12/06/26.
@@ -8,7 +8,8 @@ import Foundation
 import SwiftData
 
 @Model
-class Grups {
+class FriendsGroup {
+    var id: UUID
     var name: String
     var image: Data
     var connections: [Connection]
@@ -30,6 +31,7 @@ class Grups {
         self.name = name
         self.image = image
         self.connections = connections
+        self.id = UUID()
     }
 }
 

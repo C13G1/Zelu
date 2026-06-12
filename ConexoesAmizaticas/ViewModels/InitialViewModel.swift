@@ -18,6 +18,7 @@ import SwiftData
 class InitialViewModel {
     private(set) var modelContext           : ModelContext!
     private(set) var connectionsWithFriends : [Connection] = []
+    private(set) var friendsGroups                 : [FriendsGroup] = []
     var profile                             : User = User(name: "")
 
     /// Pulls the primary user and all active connections from local persistence.
@@ -25,12 +26,15 @@ class InitialViewModel {
         do {
             let userDescriptor        = FetchDescriptor<User>()
             let connectionsDescriptor = FetchDescriptor<Connection>()
+            let friendsGroupsDescriptor = FetchDescriptor<FriendsGroup>()
             
             var users                 = try modelContext.fetch(userDescriptor)
             let connections           = try modelContext.fetch(connectionsDescriptor)
+            let friendsGroups                = try modelContext.fetch(friendsGroupsDescriptor)
             guard users.count > 0 else { return }
             profile                   = users.removeFirst()
             connectionsWithFriends    = connections
+            self.friendsGroups        = friendsGroups
         } catch {
             print("Fetch failed")
         }
@@ -44,6 +48,16 @@ class InitialViewModel {
             friends.append(connection.friend)
         }
         return friends
+    }
+    
+    /// Extracts a flat array of `FriendsGroup` profiles from the complex `Connection` models.
+    func getFriendsGroups() -> [FriendsGroup] {
+        var friendsGroups: [FriendsGroup] = []
+        
+        for friendsGroup in self.friendsGroups {
+            friendsGroups.append(friendsGroup)
+        }
+        return friendsGroups
     }
     
     func convertDataToImage(data: Data) -> UIImage? {
