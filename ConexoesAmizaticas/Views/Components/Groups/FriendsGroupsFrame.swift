@@ -18,8 +18,6 @@ struct FriendsGroupsFrame: View {
 }
 
 #Preview {
-    let mockImage = UIImage(named: "gallery")!
-    let mockData = mockImage.pngData() ?? Data()
-    return GalleryFrame(imageData: mockData)
+    return FriendsGroupsFrame()
         .preferredColorScheme(.dark)
 }

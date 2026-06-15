@@ -6,8 +6,16 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct FriendsGroupsView: View {
+    @Environment(\.modelContext) private var modelContext
+    @State private var friendsGroupVM: FriendsGroupsViewModel
+    
+    
+    init() {
+        self._friendsGroupVM = State(initialValue: FriendsGroupsViewModel())
+    }
     var body: some View {
         ZStack {
             Rectangle()
@@ -23,7 +31,18 @@ struct FriendsGroupsView: View {
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .frame(width: 209)
+                Button(action: {
+                    friendsGroupVM.addFriendsGroup()
+                }, label: {
+                    Image(systemName: "plus")
+                        .resizable()
+                })
+                .frame(width: 100, height: 100)
             }
+        }
+        .onAppear() {
+            friendsGroupVM.setModelContext(modelContext: modelContext)
+            friendsGroupVM.fetchData()
         }
     }
 }

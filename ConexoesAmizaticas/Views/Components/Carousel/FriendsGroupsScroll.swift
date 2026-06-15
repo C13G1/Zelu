@@ -31,7 +31,7 @@ struct FriendsGroupsScroll: View {
                     .foregroundStyle(.gray.opacity(0.5))
                     .frame(width: frameWidth, height: frameHeight)
             } else {
-                ForEach(Array(viewModel.friendsGroups.enumerated()), id: \.element.id) { index, post in
+                ForEach(Array(viewModel.friendsGroups.enumerated()), id: \.element.id) { index, group in
                     
                     FriendsGroupsFrame()
                         .scaleEffect(viewModel.scaleEffect(index))
@@ -45,7 +45,7 @@ struct FriendsGroupsScroll: View {
                         .onTapGesture {
                             // Triggers the deletion confirmation overlay located in the parent view.
                             withAnimation {
-                                viewModel.postToDelete = post
+                                viewModel.friendsGroupToDelete = group
                             }
                         }
                 }

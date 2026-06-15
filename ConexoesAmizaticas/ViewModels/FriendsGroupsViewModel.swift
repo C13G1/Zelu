@@ -16,24 +16,50 @@ import PhotosUI
 /// 3D cylindrical scrolling effect. It also orchestrates the persistence of new photos via SwiftData.
 @Observable
 class FriendsGroupsViewModel {
-    private(set) var initialViewModel: InitialViewModel
+    private(set) var modelContext : ModelContext!
     private(set) var friendsGroups: [FriendsGroup] = []
     
     /// Temporarily stores the post that the user intends to delete, driving the overlay alert.
-    var postToDelete: Post? = nil
+    var friendsGroupToDelete: FriendsGroup? = nil
     
     var snappedItem: Double = 0
     var draggingItem: Double = 0
     var activeIndex: Int = 0
     
-    init(initialViewModel: InitialViewModel) {
-        self.initialViewModel = initialViewModel
+    func fetchData() {
+        do {
+            let friendsGroupsDescriptor      = FetchDescriptor<FriendsGroup>()
+            let friendsGroups                = try modelContext.fetch(friendsGroupsDescriptor)
+            self.friendsGroups = friendsGroups
+        }
+        catch {
+            print("fetch failed")
+        }
         refreshFriendsGroups()
     }
     
     /// Syncs the local memory array with the database, ensuring newest posts appear first.
     func refreshFriendsGroups() {
-        self.friendsGroups = initialViewModel.getFriendsGroups().sorted(by: { $0.id > $1.id })
+        self.friendsGroups = getFriendsGroups().sorted(by: { $0.id > $1.id })
+    }
+    /// Extracts a flat array of `FriendsGroup`
+    func getFriendsGroups() -> [FriendsGroup] {
+        var friendsGroups: [FriendsGroup] = []
+        
+        for friendsGroup in self.friendsGroups {
+            friendsGroups.append(friendsGroup)
+        }
+        return friendsGroups
+    }
+    
+    func addFriendsGroup() {
+        self.modelContext.insert(FriendsGroup(name: "Group \(friendsGroups.count + 1)", image: UIImage(named: "defaultPicture")!.jpegData(compressionQuality: 1)!, connections: []))
+        do {
+            try self.modelContext.save()
+        }
+        catch {
+            print("Erro ao salvar grupo")
+        }
     }
     
     /// Purges a specific memory from both the active array and the SwiftData store.
@@ -59,6 +85,10 @@ class FriendsGroupsViewModel {
         snappedItem = 0
         draggingItem = 0
         activeIndex = 0
+    }
+    
+    func setModelContext(modelContext: ModelContext){
+        self.modelContext = modelContext
     }
     
     // MARK: - Carousel Geometry Math
