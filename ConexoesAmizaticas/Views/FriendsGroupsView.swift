@@ -15,36 +15,47 @@ struct FriendsGroupsView: View {
     init() {
         self._friendsGroupVM = State(initialValue: FriendsGroupsViewModel())
     }
+    
     var body: some View {
-        ZStack {
-                Rectangle()
-                    .fill(Color.themeBackground)
-                VStack {
-                    if friendsGroupVM.friendsGroups.isEmpty {
+        VStack (spacing: 80){
+            VStack (spacing: 40){
+                if friendsGroupVM.friendsGroups.isEmpty {
                     Text("Crie um grupo com os amigos que você escolher e acompanhe a saúde geral dessas amizades num lugar só.")
                         .font(.custom("Sora-ExtraBold", size: 16))
-                        .foregroundStyle(.bleOverlayText)
+                        .foregroundStyle(.gray)
                         .multilineTextAlignment(.center)
                         .frame(width: 281)
+                    
                     Text("você ainda  não tem nenhum grupo")
                         .font(.custom("Sora-Bold", size: 20))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .frame(width: 209)
                 }
-                    else {
-                        FriendsGroupsScroll(viewModel: friendsGroupVM)
-                    }
-                Button(action: {
-                    friendsGroupVM.addFriendsGroup()
-                }, label: {
-                    Image(systemName: "plus")
-                        .resizable()
-                })
-                .frame(width: 100, height: 100)
+                else {
+                    FriendsGroupsScroll(viewModel: friendsGroupVM)
+                }
             }
             
+            Button(action: {
+                friendsGroupVM.addFriendsGroup()
+            }, label: {
+                ZStack {
+                    Image(systemName: "plus")
+                        .resizable()
+                        .foregroundStyle(.backgoundGreen)
+                        .fontWeight(.semibold)
+                        .padding()
+                        .overlay(
+                            Circle()
+                                .stroke(.backgoundGreen, lineWidth: 8)
+                        )
+                }
+            })
+            .frame(width: 70, height: 70)
         }
+        .frame(maxWidth: .infinity)
+        .background(Color.themeBackground)
         .onAppear() {
             friendsGroupVM.setModelContext(modelContext: modelContext)
             friendsGroupVM.fetchData()
