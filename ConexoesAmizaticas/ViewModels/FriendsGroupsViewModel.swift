@@ -17,19 +17,19 @@ import PhotosUI
 @Observable
 class FriendsGroupsViewModel {
     private(set) var modelContext : ModelContext!
-    private(set) var friendsGroups: [FriendsGroup] = []
+    var friendsGroups: [FriendsGroup] = []
     
-    /// Temporarily stores the post that the user intends to delete, driving the overlay alert.
+    /// Temporarily stores the group that the user intends to delete, driving the overlay alert.
     var friendsGroupToDelete: FriendsGroup? = nil
     
-    var snappedItem: Double = 0
+    var snappedItem:  Double = 0
     var draggingItem: Double = 0
-    var activeIndex: Int = 0
+    var activeIndex:  Int    = 0
     
     func fetchData() {
         do {
-            let friendsGroupsDescriptor      = FetchDescriptor<FriendsGroup>()
-            let friendsGroups                = try modelContext.fetch(friendsGroupsDescriptor)
+            let friendsGroupsDescriptor = FetchDescriptor<FriendsGroup>()
+            let friendsGroups = try modelContext.fetch(friendsGroupsDescriptor)
             self.friendsGroups = friendsGroups
         }
         catch {
@@ -42,6 +42,7 @@ class FriendsGroupsViewModel {
     func refreshFriendsGroups() {
         self.friendsGroups = getFriendsGroups().sorted(by: { $0.id > $1.id })
     }
+    
     /// Extracts a flat array of `FriendsGroup`
     func getFriendsGroups() -> [FriendsGroup] {
         var friendsGroups: [FriendsGroup] = []
@@ -57,7 +58,7 @@ class FriendsGroupsViewModel {
             print("erro carregando imagem")
             return
         }
-        guard let data = image.jpegData(compressionQuality: 0.99) else {
+        guard let data = image.jpegData(compressionQuality: 0.5) else {
             print("erro transformando imagem em dados")
             return
         }
@@ -114,30 +115,26 @@ class FriendsGroupsViewModel {
     
     /// Calculates the horizontal displacement.
     func xOffset(_ index: Int) -> Double {
-        let count = Double(max(friendsGroups.count, 3))
-        let angle = Double.pi * 2 / count * distance(index)
-        let radius = max(140, count * 30)
-        return sin(angle) * radius
+        let fixedVisualCount: Double = 5.0
+        let angle = (Double.pi * 2 / fixedVisualCount) * distance(index)
+        
+        let fixedRadius: Double = 230.0
+        
+        return sin(angle) * fixedRadius
     }
     
     /// Creates the subtle vertical dip at the edges.
     func yOffset(_ index: Int) -> Double {
-        return 0
-    }
-    
-    /// Tilts the cards leaning away from the center.
-    func rotationEffect(_ index: Int) -> Double {
-        return 0
+        let dist = abs(distance(index))
+        let hideThreshold = hideThreshold()
+        if dist > hideThreshold { return 1000 }
+        
+        return pow(dist * 30, 2) / 10
     }
     
     /// Ensures the center card is always rendered strictly on top.
     func zIndex(_ index: Int) -> Double {
         1.0 - abs(distance(index)) * 0.1
-    }
-    
-    /// Scales down cards that are moving towards the edges.
-    func scaleEffect(_ index: Int) -> Double {
-        1.0 - abs(distance(index)) * 0.15
     }
     
     /// Hides cards that have rotated around to the "back".
@@ -146,10 +143,8 @@ class FriendsGroupsViewModel {
         return dist > hideThreshold() ? 0.0 : 1.0
     }
     
-    // Threshold dinâmico: esconde cards que passaram do "fundo" do cilindro
     private func hideThreshold() -> Double {
-        let count = Double(max(friendsGroups.count, 3))
-        return count / 4.0
+        return 1.5
     }
     
     // MARK: - Gesture Tracking

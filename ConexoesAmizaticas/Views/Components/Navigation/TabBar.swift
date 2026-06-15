@@ -66,6 +66,7 @@ struct TabBar: View {
                         .padding(.bottom, width * 0.38)
                         
                     }
+            
             FriendsGroupsView()
         }
         .navigationDestination(for: AppRoute.self) { route in

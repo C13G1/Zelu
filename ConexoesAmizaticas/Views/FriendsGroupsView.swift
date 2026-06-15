@@ -17,7 +17,7 @@ struct FriendsGroupsView: View {
     }
     
     var body: some View {
-        VStack (spacing: 80){
+        VStack (spacing: 100){
             VStack (spacing: 40){
                 if friendsGroupVM.friendsGroups.isEmpty {
                     Text("Crie um grupo com os amigos que você escolher e acompanhe a saúde geral dessas amizades num lugar só.")
@@ -42,18 +42,17 @@ struct FriendsGroupsView: View {
             }, label: {
                 ZStack {
                     Image(systemName: "plus")
-                        .resizable()
                         .foregroundStyle(.backgoundGreen)
-                        .fontWeight(.semibold)
-                        .padding()
-                        .overlay(
-                            Circle()
-                                .stroke(.backgoundGreen, lineWidth: 8)
-                        )
+                        .fontWeight(.bold)
+                        .font(.system(size: 64))
+                        
                 }
             })
-            .frame(width: 70, height: 70)
+            .frame(width: 3000)
+            .background(Color.themeBackground)
+            .border(.red)
         }
+        .padding()
         .frame(maxWidth: .infinity)
         .background(Color.themeBackground)
         .onAppear() {

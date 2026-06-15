@@ -22,21 +22,15 @@ struct FriendsGroupsScroll: View {
     
     var body: some View {
         ZStack {
-            Color.clear.ignoresSafeArea()
-            
             if viewModel.friendsGroups.isEmpty {
                 // Empty state indicating where photos will appear once uploaded.
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(style: StrokeStyle(lineWidth: 5, dash: [8]))
+                Circle()
                     .foregroundStyle(.gray.opacity(0.5))
                     .frame(width: frameWidth, height: frameHeight)
             } else {
                 ForEach(Array(viewModel.friendsGroups.enumerated()), id: \.element.id) { index, group in
-                    let imageData = group.image
-                    FriendsGroupsFrame(imageData: imageData)
-                        .scaleEffect(viewModel.scaleEffect(index))
+                    FriendsGroupsFrame(group: group)
                         .zIndex(viewModel.zIndex(index))
-                        .rotationEffect(.degrees(viewModel.rotationEffect(index)))
                         .offset(
                             x: viewModel.xOffset(index),
                             y: viewModel.yOffset(index)
@@ -48,24 +42,8 @@ struct FriendsGroupsScroll: View {
                                 viewModel.friendsGroupToDelete = group
                             }
                         }
-                    Text("\(group.name)")
                 }
             }
-            
-            // Visual indicators guiding the user to scroll horizontally.
-            HStack {
-                Image("galleryArrow")
-                    .resizable()
-                    .frame(width: arrowWidth, height: arrowHeight)
-                
-                Spacer()
-                
-                Image("galleryArrow")
-                    .resizable()
-                    .scaleEffect(x: -1, y: 1)
-                    .frame(width: arrowWidth, height: arrowHeight)
-            }
-            .frame(width: UIScreen.main.bounds.width * 0.78)
         }
         // Attaches the physics-based drag tracking to the entire scroll area.
         .gesture(
@@ -77,5 +55,40 @@ struct FriendsGroupsScroll: View {
                     viewModel.onDragEnded(value: value)
                 }
         )
+    }
+}
+#Preview {
+    PreviewWrapper()
+}
+
+private struct PreviewWrapper: View {
+    let container: ModelContainer
+    let mockViewModel: FriendsGroupsViewModel
+    
+    init() {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        container = try! ModelContainer(for: FriendsGroup.self, configurations: config)
+        
+        // 2. Cria os dados falsos (Mocks)
+        let mockGroup1 = FriendsGroup(name: "", image: Data(), connections: [])
+        let mockGroup2 = FriendsGroup(name: "Futebol de Quinta", image: Data(), connections: [])
+        let mockGroup3 = FriendsGroup(name: "Clube do Livro", image: Data(), connections: [])
+        let mockGroup4 = FriendsGroup(name: "Clube do Livro", image: Data(), connections: [])
+        
+        // 3. Insere no banco de dados da memória
+        container.mainContext.insert(mockGroup1)
+        container.mainContext.insert(mockGroup2)
+        container.mainContext.insert(mockGroup3)
+        container.mainContext.insert(mockGroup4)
+        
+        // 4. Prepara o ViewModel
+        mockViewModel = FriendsGroupsViewModel()
+        mockViewModel.friendsGroups = [mockGroup1, mockGroup2, mockGroup3]
+    }
+    
+    var body: some View {
+        // 5. Retorna a sua View original atrelada ao container
+        FriendsGroupsScroll(viewModel: mockViewModel)
+            .modelContainer(container)
     }
 }
