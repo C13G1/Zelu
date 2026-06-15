@@ -53,7 +53,17 @@ class FriendsGroupsViewModel {
     }
     
     func addFriendsGroup() {
-        self.modelContext.insert(FriendsGroup(name: "Group \(friendsGroups.count + 1)", image: UIImage(named: "defaultPicture")!.jpegData(compressionQuality: 1)!, connections: []))
+        guard let image = UIImage(named: "defaultPicture") else {
+            print("erro carregando imagem")
+            return
+        }
+        guard let data = image.jpegData(compressionQuality: 0.99) else {
+            print("erro transformando imagem em dados")
+            return
+        }
+        let group = FriendsGroup(name: "Group \(friendsGroups.count + 1)", image: data, connections: [])
+        self.modelContext.insert(group)
+        self.friendsGroups.append(group)
         do {
             try self.modelContext.save()
         }

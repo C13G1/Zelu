@@ -32,8 +32,8 @@ struct FriendsGroupsScroll: View {
                     .frame(width: frameWidth, height: frameHeight)
             } else {
                 ForEach(Array(viewModel.friendsGroups.enumerated()), id: \.element.id) { index, group in
-                    
-                    FriendsGroupsFrame()
+                    let imageData = group.image
+                    FriendsGroupsFrame(imageData: imageData)
                         .scaleEffect(viewModel.scaleEffect(index))
                         .zIndex(viewModel.zIndex(index))
                         .rotationEffect(.degrees(viewModel.rotationEffect(index)))
@@ -48,6 +48,7 @@ struct FriendsGroupsScroll: View {
                                 viewModel.friendsGroupToDelete = group
                             }
                         }
+                    Text("\(group.name)")
                 }
             }
             
