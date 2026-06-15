@@ -6,6 +6,7 @@
 //
 import Foundation
 import SwiftData
+import UIKit
 
 @Model
 class FriendsGroup {
@@ -27,7 +28,7 @@ class FriendsGroup {
         return sum.max(by: { $0.value < $1.value })?.key ?? .afastados
     }
     
-    init(name: String, image: Data,connections: [Connection]) {
+    init(name: String = "Default Name", image: Data = UIImage(named: "defaultPicture")!.jpegData(compressionQuality: 0.99)!,connections: [Connection] = []) {
         self.name = name
         self.image = image
         self.connections = connections
