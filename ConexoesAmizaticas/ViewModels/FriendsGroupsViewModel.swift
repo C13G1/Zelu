@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import UIKit
 
 /// Controls the state and mathematical rendering of the memory carousel for a specific connection.
 ///
@@ -58,17 +59,21 @@ class FriendsGroupsViewModel {
             print("erro carregando imagem")
             return
         }
-        guard let data = image.jpegData(compressionQuality: 0.5) else {
+        
+        let safeImage = image.resized(toMaxWidth: 800)
+        
+        guard let data = safeImage.jpegData(compressionQuality: 0.8) else {
             print("erro transformando imagem em dados")
             return
         }
+        
         let group = FriendsGroup(name: "Group \(friendsGroups.count + 1)", image: data, connections: [])
         self.modelContext.insert(group)
         self.friendsGroups.append(group)
+        
         do {
             try self.modelContext.save()
-        }
-        catch {
+        } catch {
             print("Erro ao salvar grupo")
         }
     }
@@ -171,6 +176,24 @@ class FriendsGroupsViewModel {
             if activeIndex >= count || Int(draggingItem) >= 0 {
                 activeIndex = Int(draggingItem)
             }
+        }
+    }
+}
+
+extension UIImage {
+    /// Redimensiona a imagem para uma largura máxima, mantendo a proporção.
+    func resized(toMaxWidth width: CGFloat) -> UIImage {
+        let multiplier = width / size.width
+        // Se a imagem já for menor que o limite, retorna ela mesma
+        if multiplier >= 1.0 { return self }
+        
+        let newSize = CGSize(width: width, height: size.height * multiplier)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0 // Usa escala 1x para não multiplicar o tamanho final
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 }

@@ -64,6 +64,28 @@ class StoreKitManager: ObservableObject {
         }
     }
     
+    // MARK: - Realizar Compra Unitária (Consumível)
+    func purchaseConsumable(_ product: Product) async throws -> Bool {
+        isLoading = true
+        defer { isLoading = false }
+        
+        let result = try await product.purchase()
+        
+        switch result {
+        case .success(let verification):
+            let transaction = try checkVerified(verification)
+            await transaction.finish()
+            return true
+            
+        case .userCancelled:
+            return false
+        case .pending:
+            return false
+        @unknown default:
+            return false
+        }
+    }
+    
     // MARK: - Restaurar compras
     func restorePurchases() async {
         isLoading = true
@@ -134,7 +156,7 @@ enum StoreError: Error, LocalizedError {
     case failedVerification
     case productNotFound
     case purchaseFailed(reason: String)
-
+    
     var errorDescription: String? {
         switch self {
         case .failedVerification:
