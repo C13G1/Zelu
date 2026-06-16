@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		91A20C4E2FE065D7006E06E1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91A20C4D2FE065D7006E06E1 /* StoreKit.framework */; };
 		C6EA79132FC8CC0D005FB601 /* Aptabase in Frameworks */ = {isa = PBXBuildFile; productRef = C6EA79122FC8CC0D005FB601 /* Aptabase */; };
 /* End PBXBuildFile section */
 
@@ -28,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		91A20C4D2FE065D7006E06E1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		C6ED03192FB661D7001FCAFC /* ConexoesAmizaticas.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ConexoesAmizaticas.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C6ED032A2FB661D8001FCAFC /* ConexoesAmizaticasTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ConexoesAmizaticasTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C6ED03342FB661D8001FCAFC /* ConexoesAmizaticasUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ConexoesAmizaticasUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -65,6 +67,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C6EA79132FC8CC0D005FB601 /* Aptabase in Frameworks */,
+				91A20C4E2FE065D7006E06E1 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,11 +88,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		91A20C4C2FE065D7006E06E1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				91A20C4D2FE065D7006E06E1 /* StoreKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		C6ED03102FB661D7001FCAFC = {
 			isa = PBXGroup;
 			children = (
 				C6ED031B2FB661D7001FCAFC /* ConexoesAmizaticas */,
 				C6ED032D2FB661D8001FCAFC /* ConexoesAmizaticasTests */,
+				91A20C4C2FE065D7006E06E1 /* Frameworks */,
 				C6ED031A2FB661D7001FCAFC /* Products */,
 			);
 			sourceTree = "<group>";
