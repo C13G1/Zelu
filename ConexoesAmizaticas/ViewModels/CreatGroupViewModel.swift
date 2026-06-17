@@ -20,7 +20,7 @@ class CreatGroupViewModel{
     var profileImageData: Data?
     var selectedConnections: [Connection]
     
-    init(name: String = "", selectedPhoto: PhotosPickerItem? = nil, profileImageData: Data? = nil, selectedConnections: [Connection], group: Groups = Groups(name: "", image: Data(), connections: [Connection(friend: User())])) {
+    init(name: String = "", selectedPhoto: PhotosPickerItem? = nil, profileImageData: Data? = nil, selectedConnections: [Connection], group: FriendGroup = FriendGroup(name: "", image: Data(), connections: [Connection(friend: User())])) {
         self.name = name
         self.characterLimit = 10
         self.selectedPhoto = selectedPhoto
@@ -53,7 +53,7 @@ class CreatGroupViewModel{
         let finalImageData = profileImageData
                              ?? UIImage(named: "defaultPicture")?.jpegData(compressionQuality: 0.99)
                              ?? Data()
-        let group = Groups(
+        let group = FriendGroup(
             name: finalName,
             image: finalImageData,
             connections: selectedConnections
