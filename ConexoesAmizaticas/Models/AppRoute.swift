@@ -6,7 +6,7 @@
 //
 
 import Foundation
-
+ 
 /// Enum centralizado de todas as rotas de navegação do app.
 /// Todos os NavigationLink usam `NavigationLink(value:)` com esse enum —
 /// o NavigationStack do InitialView é o único responsável por resolver os destinos.
@@ -21,14 +21,12 @@ enum AppRoute: Hashable {
         case (.search, .search): return true
         case (.ble, .ble): return true
         case (.setMeta(let a), .setMeta(let b)):
+            // Compara pelo ID da connection para não depender do ViewModel ser Equatable
             return a.connection.id == b.connection.id
-        case (.groupDetails(let a), .groupDetails(let b)):
-            // Compara pelo ID do FriendGroup para manter consistência
-            return a.id == b.id
         default: return false
         }
     }
-
+ 
     func hash(into hasher: inout Hasher) {
         switch self {
         case .search:
@@ -40,7 +38,8 @@ enum AppRoute: Hashable {
             hasher.combine(vm.connection.id)
         case .groupDetails(let group):
             hasher.combine(3)
-            hasher.combine(group.id)
+            hasher.combine(group)
+            
         }
     }
 }

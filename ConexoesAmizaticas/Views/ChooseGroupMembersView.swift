@@ -106,7 +106,9 @@ struct ChooseGroupMembersView: View {
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always))
         }
+        .interactiveDismissDisabled()
         .navigationTitle("novo grupo")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar{
 //            ToolbarItem(placement: .cancellationAction) {
 //                Button {

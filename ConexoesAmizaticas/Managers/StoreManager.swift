@@ -143,6 +143,7 @@ class StoreKitManager: ObservableObject {
     }
 }
 
+
 extension StoreKit.Transaction {
     var isExpired: Bool {
         if let expirationDate = expirationDate {
@@ -151,6 +152,7 @@ extension StoreKit.Transaction {
         return false
     }
 }
+
 
 enum StoreError: Error, LocalizedError {
     case failedVerification

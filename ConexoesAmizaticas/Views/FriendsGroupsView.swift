@@ -1,6 +1,14 @@
+//
+//  FriendsGroupsView.swift
+//  ConexoesAmizaticas
+//
+//  Created by Thomas Pinheiro Grandin on 12/06/26.
+//
+
 import SwiftUI
 import SwiftData
 import StoreKit
+
 
 struct FriendsGroupsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -76,17 +84,6 @@ struct FriendsGroupsView: View {
             if novoStatus {
                 showCreateGroupSheet = true
             }
-        }
-        .onChange(of: showCreateGroupSheet) {
-            do {
-                let descriptor = FetchDescriptor<FriendGroup>()
-                let groups = try modelContext.fetch(descriptor)
-                
-                friendsGroupVM.friendsGroups = groups
-            } catch {
-                print("Erro ao buscar grupos: \(error)")
-            }
-            
         }
     }
 }

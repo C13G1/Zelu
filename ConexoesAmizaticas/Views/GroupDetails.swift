@@ -95,6 +95,15 @@ struct GroupDetails: View {
 
 #Preview {
     @Previewable @State var navigation: NavigationPath = NavigationPath()
+    let mockImage = UIImage(named: "defaultPicture")!
+    let mockData = mockImage.pngData() ?? Data()
 
-    GroupDetails(navigation: $navigation, group: FriendGroup())
+    GroupDetails(navigation: $navigation, group: FriendGroup(name: "Preview", image: mockData, connections: [
+        Connection(friend: User(name: "Jones")),
+        Connection(friend: User(name: "Dayo")),
+        Connection(friend: User(name: "Mathias")),
+        Connection(friend: User(name: "Camis")),
+        Connection(friend: User(name: "Thomas")),
+        Connection(friend: User(name: "Bullet")),
+    ]))
 }

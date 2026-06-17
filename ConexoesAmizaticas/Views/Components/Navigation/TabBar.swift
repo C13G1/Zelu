@@ -5,7 +5,9 @@
 //  Created by Dayô Araújo on 26/05/26.
 //
 
+
 import SwiftUI
+
 
 /// The custom bottom navigation bar for the main interface.
 ///
@@ -85,7 +87,7 @@ struct TabBar: View {
                 GroupDetails(navigation: $navigation, group: group)
             }
         }
-        .offset(y: isHidden ? UIScreen.main.bounds.height * 0.18 : -UIScreen.main.bounds.height * 0.25)
+        .offset(y: isHidden ? UIScreen.main.bounds.height * 0.19 : -UIScreen.main.bounds.height * 0.25)
         .animation(.spring(), value: isHidden)
         .gesture(SwipeUpGesture)
     }
@@ -101,6 +103,7 @@ struct TabBar: View {
             }
     }
 }
+
 
 #Preview {
     InitialView()

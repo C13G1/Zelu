@@ -6,6 +6,7 @@
 //
 import SwiftUI
 
+
 struct FriendsGroupsFrame: View {
     var group: FriendGroup
     var width = UIScreen.main.bounds.width
@@ -40,6 +41,7 @@ struct FriendsGroupsFrame: View {
         }
     }
 }
+
 
 #Preview {
     let mockImage = UIImage(named: "defaultPicture")!
