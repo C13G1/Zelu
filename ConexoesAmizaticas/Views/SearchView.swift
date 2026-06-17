@@ -51,6 +51,7 @@ struct SearchView: View {
         .onAppear {
             scene.updateConnections(receivedConnections: Set(connections))
             scene.onFriendTapped = { connection in
+                // ✅ Appenda no path do InitialView, não no navPath local
                 DispatchQueue.main.async {
                     navigation.append(connection)
                 }

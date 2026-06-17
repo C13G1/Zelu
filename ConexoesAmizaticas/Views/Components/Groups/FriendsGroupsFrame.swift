@@ -13,12 +13,12 @@ struct FriendsGroupsFrame: View {
     
     var body: some View {
         if let uiImage = UIImage(data: group.image) {
-            VStack (spacing: 15){
+            VStack {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: width * 0.37,
-                           height: height * 0.17)
+                    .frame(width: width * 0.45,
+                           height: height * 0.27)
                     .clipShape(Circle())
                     .overlay(
                         Circle()
