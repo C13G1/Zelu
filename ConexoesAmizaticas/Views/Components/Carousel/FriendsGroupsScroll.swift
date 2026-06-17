@@ -67,13 +67,13 @@ private struct PreviewWrapper: View {
     
     init() {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        container = try! ModelContainer(for: FriendGroup.self, configurations: config)
+        container = try! ModelContainer(for: FriendsGroup.self, configurations: config)
         
         // 2. Cria os dados falsos (Mocks)
-        let mockGroup1 = FriendGroup(name: "", image: Data(), connections: [])
-        let mockGroup2 = FriendGroup(name: "Futebol de Quinta", image: Data(), connections: [])
-        let mockGroup3 = FriendGroup(name: "Clube do Livro", image: Data(), connections: [])
-        let mockGroup4 = FriendGroup(name: "Clube do Livro", image: Data(), connections: [])
+        let mockGroup1 = FriendsGroup(name: "", image: Data(), connections: [])
+        let mockGroup2 = FriendsGroup(name: "Futebol de Quinta", image: Data(), connections: [])
+        let mockGroup3 = FriendsGroup(name: "Clube do Livro", image: Data(), connections: [])
+        let mockGroup4 = FriendsGroup(name: "Clube do Livro", image: Data(), connections: [])
         
         // 3. Insere no banco de dados da memória
         container.mainContext.insert(mockGroup1)

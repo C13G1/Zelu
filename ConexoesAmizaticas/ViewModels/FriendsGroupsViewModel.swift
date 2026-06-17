@@ -18,10 +18,10 @@ import UIKit
 @Observable
 class FriendsGroupsViewModel {
     private(set) var modelContext : ModelContext!
-    var friendsGroups: [FriendGroup] = []
+    var friendsGroups: [FriendsGroup] = []
     
     /// Temporarily stores the group that the user intends to delete, driving the overlay alert.
-    var friendsGroupToDelete: FriendGroup? = nil
+    var friendsGroupToDelete: FriendsGroup? = nil
     
     var snappedItem:  Double = 0
     var draggingItem: Double = 0
@@ -29,7 +29,7 @@ class FriendsGroupsViewModel {
     
     func fetchData() {
         do {
-            let friendsGroupsDescriptor = FetchDescriptor<FriendGroup>()
+            let friendsGroupsDescriptor = FetchDescriptor<FriendsGroup>()
             let friendsGroups = try modelContext.fetch(friendsGroupsDescriptor)
             self.friendsGroups = friendsGroups
         }
@@ -45,8 +45,8 @@ class FriendsGroupsViewModel {
     }
     
     /// Extracts a flat array of `FriendsGroup`
-    func getFriendsGroups() -> [FriendGroup] {
-        var friendsGroups: [FriendGroup] = []
+    func getFriendsGroups() -> [FriendsGroup] {
+        var friendsGroups: [FriendsGroup] = []
         
         for friendsGroup in self.friendsGroups {
             friendsGroups.append(friendsGroup)
@@ -67,7 +67,7 @@ class FriendsGroupsViewModel {
             return
         }
         
-        let group = FriendGroup(name: "Group \(friendsGroups.count + 1)", image: data, connections: [])
+        let group = FriendsGroup(name: "Group \(friendsGroups.count + 1)", image: data, connections: [])
         self.modelContext.insert(group)
         self.friendsGroups.append(group)
         
@@ -80,11 +80,11 @@ class FriendsGroupsViewModel {
     
     /// Purges a specific memory from both the active array and the SwiftData store.
     func deleteFriendsGroup(withId: UUID, context: ModelContext) {
-        let predicate = #Predicate<FriendGroup> { friendsGroup in
+        let predicate = #Predicate<FriendsGroup> { friendsGroup in
             friendsGroup.id == withId
         }
         
-        var fetchDescriptor = FetchDescriptor<FriendGroup>(predicate: predicate)
+        var fetchDescriptor = FetchDescriptor<FriendsGroup>(predicate: predicate)
         fetchDescriptor.fetchLimit = 1
         
         do {

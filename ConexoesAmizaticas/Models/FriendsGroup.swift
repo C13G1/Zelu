@@ -9,7 +9,7 @@ import SwiftData
 import UIKit
 
 @Model
-class FriendGroup {
+class FriendsGroup {
     var id: UUID
     var name: String
     var image: Data
