@@ -8,7 +8,7 @@ import Foundation
 import SwiftData
 
 @Model
-class Grups {
+class Groups {
     var name: String
     var image: Data
     var connections: [Connection]
