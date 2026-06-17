@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		91A20C4E2FE065D7006E06E1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91A20C4D2FE065D7006E06E1 /* StoreKit.framework */; };
+		91A20C572FE06CB1006E06E1 /* StoreKit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 91A20C562FE06CB1006E06E1 /* StoreKit.storekit */; };
+		91A20C582FE06CB1006E06E1 /* StoreKit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 91A20C562FE06CB1006E06E1 /* StoreKit.storekit */; };
+		91A20C592FE06CB1006E06E1 /* StoreKit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 91A20C562FE06CB1006E06E1 /* StoreKit.storekit */; };
 		C6EA79132FC8CC0D005FB601 /* Aptabase in Frameworks */ = {isa = PBXBuildFile; productRef = C6EA79122FC8CC0D005FB601 /* Aptabase */; };
 /* End PBXBuildFile section */
 
@@ -30,6 +33,7 @@
 
 /* Begin PBXFileReference section */
 		91A20C4D2FE065D7006E06E1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		91A20C562FE06CB1006E06E1 /* StoreKit.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StoreKit.storekit; sourceTree = "<group>"; };
 		C6ED03192FB661D7001FCAFC /* ConexoesAmizaticas.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ConexoesAmizaticas.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C6ED032A2FB661D8001FCAFC /* ConexoesAmizaticasTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ConexoesAmizaticasTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C6ED03342FB661D8001FCAFC /* ConexoesAmizaticasUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ConexoesAmizaticasUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -103,6 +107,7 @@
 				C6ED032D2FB661D8001FCAFC /* ConexoesAmizaticasTests */,
 				91A20C4C2FE065D7006E06E1 /* Frameworks */,
 				C6ED031A2FB661D7001FCAFC /* Products */,
+				91A20C562FE06CB1006E06E1 /* StoreKit.storekit */,
 			);
 			sourceTree = "<group>";
 		};
@@ -237,6 +242,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				91A20C572FE06CB1006E06E1 /* StoreKit.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -244,6 +250,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				91A20C582FE06CB1006E06E1 /* StoreKit.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,6 +258,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				91A20C592FE06CB1006E06E1 /* StoreKit.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -317,7 +325,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.5;
+				MARKETING_VERSION = 2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.AppleDeveloperAcademyMackenzie.ConexoesAmizaticas;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -357,7 +365,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.5;
+				MARKETING_VERSION = 2.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.AppleDeveloperAcademyMackenzie.ConexoesAmizaticas;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

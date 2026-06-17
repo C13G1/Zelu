@@ -1,14 +1,16 @@
 //
-//  Grups.swift
+//  FriendsGroup.swift
 //  ConexoesAmizaticas
 //
 //  Created by Jonas Fernando Nascimento Melo on 12/06/26.
 //
 import Foundation
 import SwiftData
+import UIKit
 
 @Model
 class FriendGroup {
+    var id: UUID
     var name: String
     var image: Data
     var connections: [Connection]
@@ -26,10 +28,11 @@ class FriendGroup {
         return sum.max(by: { $0.value < $1.value })?.key ?? .afastados
     }
     
-    init(name: String, image: Data,connections: [Connection]) {
+    init(name: String = "Default Name", image: Data = UIImage(named: "defaultPicture")!.jpegData(compressionQuality: 0.99)!,connections: [Connection] = []) {
         self.name = name
         self.image = image
         self.connections = connections
+        self.id = UUID()
     }
 }
 
