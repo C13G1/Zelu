@@ -5,7 +5,9 @@
 //  Created by Dayô Araújo on 26/05/26.
 //
 
+
 import SwiftUI
+
 
 /// The custom bottom navigation bar for the main interface.
 ///
@@ -20,54 +22,58 @@ struct TabBar: View {
     var height = UIScreen.main.bounds.height
     
     var body: some View {
-        VStack(spacing: -1) {
+        VStack (spacing: -47){
                 SemiCircle()
                     .fill(Color.themeBackground)
-                    .frame(width: width, height: 100)
+                    .frame(width: width * 1.05, height: 100)
                     .overlay() {
-                        HStack {
-                            NavigationLink(value: AppRoute.search) {
-                                ZStack {
-                                    Circle()
-                                        .frame(width: width * 0.15)
-                                        .foregroundStyle(.lightBackground)
-                                    Image(systemName: "magnifyingglass")
-                                        .foregroundStyle(.black)
-                                        .font(.title2)
-                                        .bold()
+                        ZStack {
+                            HStack {
+                                NavigationLink(value: AppRoute.search) {
+                                    ZStack {
+                                        Circle()
+                                            .frame(width: width * 0.15)
+                                            .foregroundStyle(.lightBackground)
+                                        Image(systemName: "magnifyingglass")
+                                            .foregroundStyle(.black)
+                                            .font(.title2)
+                                            .bold()
+                                    }
+                                    .frame(width: width * 0.19, height: width * 0.19)
+                                    .background(.themeBackground)
+                                    .cornerRadius(100)                }
+                                
+                                Spacer()
+                                
+                                // Central App Logo
+                                Image("zELu")
+                                    .padding(.bottom, height * 0.07)
+                                
+                                Spacer()
+                                
+                                NavigationLink(value: AppRoute.ble) {
+                                    ZStack {
+                                        Circle()
+                                            .frame(width: width * 0.15)
+                                            .foregroundStyle(.lightBackground)
+                                        Image(systemName: "person.2.badge.plus.fill")
+                                            .foregroundStyle(.black)
+                                            .font(.title2)
+                                    }
+                                    .frame(width: width * 0.19, height: width * 0.19)
+                                    .background(.themeBackground)
+                                    .cornerRadius(100)
                                 }
-                                .frame(width: width * 0.19, height: width * 0.19)
-                                .background(.themeBackground)
-                                .cornerRadius(100)                }
-                            
-                            Spacer()
-                            
-                            // Central App Logo
-                            Image("zELu")
-                                .padding(.bottom, height * 0.07)
-                            
-                            Spacer()
-                            
-                            NavigationLink(value: AppRoute.ble) {
-                                ZStack {
-                                    Circle()
-                                        .frame(width: width * 0.15)
-                                        .foregroundStyle(.lightBackground)
-                                    Image(systemName: "person.2.badge.plus.fill")
-                                        .foregroundStyle(.black)
-                                        .font(.title2)
-                                }
-                                .frame(width: width * 0.19, height: width * 0.19)
-                                .background(.themeBackground)
-                                .cornerRadius(100)
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 25)
                         .padding(.bottom, width * 0.38)
                         
                     }
             
             FriendsGroupsView()
+                .frame(width: width)
+            
         }
         .navigationDestination(for: AppRoute.self) { route in
             switch route {
@@ -75,11 +81,13 @@ struct TabBar: View {
                 SearchView(viewModel: $viewModel, navigation: $navigation)
             case .ble:
                 BLEView(profile: viewModel.profile)
-            case .setMeta(_):
-                EmptyView()
+            case .setMeta(let friendVM):
+                SetMetaView(viewModel: friendVM)
+            case .groupDetails(let group):
+                GroupDetails(navigation: $navigation, group: group)
             }
         }
-        .offset(y: isHidden ? 0 : -UIScreen.main.bounds.height * 0.61)
+        .offset(y: isHidden ? UIScreen.main.bounds.height * 0.19 : -UIScreen.main.bounds.height * 0.25)
         .animation(.spring(), value: isHidden)
         .gesture(SwipeUpGesture)
     }
@@ -95,6 +103,7 @@ struct TabBar: View {
             }
     }
 }
+
 
 #Preview {
     InitialView()

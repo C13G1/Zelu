@@ -5,12 +5,15 @@
 //  Created by Dayô Araújo on 25/05/26.
 //
 
+
 import SwiftUI
 import UIKit
 import _SpriteKit_SwiftUI
 import _SwiftData_SwiftUI
 
+
 // MARK: - InitialView
+
 
 /// The primary interactive workspace of the application.
 ///
@@ -81,6 +84,8 @@ struct InitialView: View {
                             BLEView(profile: vm.profile)
                         case .setMeta(let friendVM):
                             SetMetaView(viewModel: friendVM)
+                        case .groupDetails(let group):
+                            GroupDetails(navigation: $navigation, group: group)
                         }
                     }
                     .navigationDestination(isPresented: $showVacuoView) {
@@ -124,6 +129,8 @@ struct InitialView: View {
     }
 }
 
+
 #Preview {
     InitialView()
 }
+ 

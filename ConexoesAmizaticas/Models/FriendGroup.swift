@@ -8,7 +8,7 @@ import Foundation
 import SwiftData
 
 @Model
-class FriendsGroup {
+class FriendGroup {
     var id: UUID
     var name: String
     var image: Data
