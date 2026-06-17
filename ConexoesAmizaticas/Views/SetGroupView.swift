@@ -112,14 +112,14 @@ struct SetGroupView: View {
             
         }
         .toolbar{
-            ToolbarItem(placement: .cancellationAction) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .resizable()
-                }
-            }
+//            ToolbarItem(placement: .cancellationAction) {
+//                Button {
+//                    dismiss()
+//                } label: {
+//                    Image(systemName: "xmark")
+//                        .resizable()
+//                }
+//            }
             ToolbarItem{
                 Button {
                     viewModel.createGroup(modelContext: modelContext)

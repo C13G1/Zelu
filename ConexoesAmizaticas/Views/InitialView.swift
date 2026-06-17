@@ -5,12 +5,15 @@
 //  Created by Dayô Araújo on 25/05/26.
 //
 
+
 import SwiftUI
 import UIKit
 import _SpriteKit_SwiftUI
 import _SwiftData_SwiftUI
 
+
 // MARK: - InitialView
+
 
 /// The primary interactive workspace of the application.
 ///
@@ -30,27 +33,17 @@ struct InitialView: View {
     var width = UIScreen.main.bounds.width
     var height = UIScreen.main.bounds.height
     
-    @State private var scene: FriendsScene? = nil
+    @State private var scene: FriendsScene = {
+        let s = FriendsScene(size: UIScreen.main.bounds.size, connections: Set(), sceneType: .initial)
+        s.scaleMode = .aspectFill
+        return s
+    }()
     
     var body: some View {
         NavigationStack(path: $navigation) {
             ZStack {
-                GeometryReader { geo in
-                    let size = geo.size
-                    Group {
-                        if let scene {
-                            SpriteView(scene: scene, debugOptions: [])
-                                .frame(width: size.width, height: size.height)
-                        }
-                    }
-                    .onAppear {
-                        guard scene == nil, size.width > 0, size.height > 0 else { return }
-                        let s = FriendsScene(size: size, connections: Set(), sceneType: .initial)
-                        s.scaleMode = .aspectFill
-                        scene = s
-                    }
-                }
-                .frame(height: height)
+                SpriteView(scene: scene, debugOptions: [])
+                    .frame(height: height)
                 
                 ZStack {
                     ToolBar(vm: $vm)
@@ -78,7 +71,6 @@ struct InitialView: View {
                         .padding(.top, height * 0.3)
                     }
                 }
-                
                 TabBar(viewModel: $vm, navigation: $navigation, user: vm.profile)
                     .padding(.top, width * 2.15)
                     .navigationDestination(for: Connection.self) { value in
@@ -93,7 +85,7 @@ struct InitialView: View {
                         case .setMeta(let friendVM):
                             SetMetaView(viewModel: friendVM)
                         case .groupDetails(let group):
-                            GroupDetails(group: group)
+                            GroupDetails(navigation: $navigation, group: group)
                         }
                     }
                     .navigationDestination(isPresented: $showVacuoView) {
@@ -105,12 +97,12 @@ struct InitialView: View {
             vm.setModelContext(modelContext: modelContext)
             vm.fetchData()
             vm.bootstrap(connections: connections)
-            scene?.onFriendTapped = { connection in
+            scene.onFriendTapped = { connection in
                 DispatchQueue.main.async {
                     navigation.append(connection)
                 }
             }
-            scene?.onSpiralTapped = {
+            scene.onSpiralTapped = {
                 showVacuoView = true
             }
             if users.first != nil {
@@ -121,15 +113,15 @@ struct InitialView: View {
             vm.profile = currentUser
         }
         .onChange(of: connections, initial: true) { _, newConnections in
-            scene?.updateConnections(receivedConnections: Set(newConnections.filter { !$0.inVacuo }))
-            scene?.updateNodeVisuals()
+            scene.updateConnections(receivedConnections: Set(newConnections.filter { !$0.inVacuo }))
+            scene.updateNodeVisuals()
         }
         .onReceive(NotificationCenter.default.publisher(for: .meetingConfirmed)) { _ in
-            scene?.updateConnections(receivedConnections: Set(connections.filter { !$0.inVacuo }))
-            scene?.updateNodeVisuals()
+            scene.updateConnections(receivedConnections: Set(connections.filter { !$0.inVacuo }))
+            scene.updateNodeVisuals()
         }
         .onReceive(NotificationCenter.default.publisher(for: .friendProfileUpdated)) { _ in
-            scene?.updateNodeVisuals()
+            scene.updateNodeVisuals()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
@@ -137,9 +129,8 @@ struct InitialView: View {
     }
 }
 
+
 #Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Connection.self, User.self, configurations: config)
-    return InitialView()
-        .modelContainer(container)
+    InitialView()
 }
+ 

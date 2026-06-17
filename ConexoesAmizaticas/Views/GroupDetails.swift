@@ -9,32 +9,32 @@ import SwiftUI
 import SpriteKit
 
 struct GroupDetails: View {
+    @Binding var navigation: NavigationPath
     var group: FriendGroup
     var height = UIScreen.main.bounds.height
     var width = UIScreen.main.bounds.width
-    
-    @State private var scene: FriendsScene
-    
-    init(group: FriendGroup) {
-        self.group = group
-        
-        let initialScene = FriendsScene(
-            size: UIScreen.main.bounds.size,
-            connections: Set(group.connections),
-            sceneType: .search
-        )
-        initialScene.scaleMode = .aspectFill
-        
-        self._scene = State(initialValue: initialScene)
-    }
+    let clipCircle: Circle = {
+        let circle = Circle()
+        circle.frame(width: UIScreen.main.bounds.width * 1.91, height: UIScreen.main.bounds.height)
+
+        return circle
+    }()
+    @State private var scene: FriendsScene = FriendsScene(size: UIScreen.main.bounds.size,
+                                                          connections: Set(),
+                                                          sceneType: .search
+    )
     
     var body: some View {
         ZStack {
             SpriteView(scene: scene)
-                .clipShape(Circle())
-                .frame(width: width * 1.91, height: height)
+                .frame(width: width, height: height)
                 .padding(.bottom)
-            
+                .mask{
+                    Circle()
+                        .frame(width: width * 1.91, height: height)
+                        .foregroundStyle(.white)
+                }
+           
             VStack {
                 Text(group.name)
                     .font(.custom("Bolota", size: 32))
@@ -80,11 +80,21 @@ struct GroupDetails: View {
             .padding(.top, 45)
             .padding(.vertical, 50)
         }
+        .onAppear {
+            scene.updateConnections(receivedConnections: Set(group.connections))
+            scene.onFriendTapped = { connection in
+                DispatchQueue.main.async {
+                    navigation.append(connection)
+                }
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.themeBackground)
     }
 }
 
 #Preview {
-    GroupDetails(group: FriendGroup())
+    @Previewable @State var navigation: NavigationPath = NavigationPath()
+
+    GroupDetails(navigation: $navigation, group: FriendGroup())
 }

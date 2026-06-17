@@ -19,7 +19,8 @@ enum AppSchema {
         Post.self,
         FeedManager.self,
         Connection.self,
-        MetaManager.self
+        MetaManager.self,
+        FriendGroup.self   
     ]
 
     /// Convenience wrapper that builds a `Schema` from `models`, ready to be passed to `ModelContainer`.

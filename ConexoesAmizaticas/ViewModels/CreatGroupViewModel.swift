@@ -49,7 +49,7 @@ class CreatGroupViewModel{
     /// Finalizes the onboarding by packaging the collected data into a `User` model and inserting it.
     /// - Parameter modelContext: The SwiftData context that will receive the new profile.
     func createGroup(modelContext: ModelContext) {
-        let finalName = name != "" ? "Grupo" : name
+        let finalName = name == "" ? "Grupo" : name
         let finalImageData = profileImageData
                              ?? UIImage(named: "defaultPicture")?.jpegData(compressionQuality: 0.99)
                              ?? Data()
@@ -58,8 +58,13 @@ class CreatGroupViewModel{
             image: finalImageData,
             connections: selectedConnections
         )
-        
-        modelContext.insert(group)
-        Aptabase.shared.trackEvent("group_created")
+        do {
+            modelContext.insert(group)
+            try modelContext.save()
+            Aptabase.shared.trackEvent("group_created")
+        }
+        catch{
+            print("erro ao criar grupo")
+        }
     }
 }

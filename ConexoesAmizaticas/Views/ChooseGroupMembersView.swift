@@ -13,15 +13,7 @@ struct ChooseGroupMembersView: View {
     @Binding var isChoosingGroupMembers: Bool
     @State private var searchText = ""
     @State var numSelecteds = 0
-//    @Query var connections: [Connection]
-    @State var connections: [Connection] = [
-        Connection(friend: User(name: "bullet")),
-        Connection(friend: User(name: "camis")),
-        Connection(friend: User(name: "jones")),
-        Connection(friend: User(name: "mathias")),
-        Connection(friend: User(name: "dayo")),
-        Connection(friend: User(name: "thomas")),
-    ]
+    @Query var connections: [Connection]
     @Binding var selectedConecctions: [Connection]
 
     var grouped: [(key: String, value: [Connection])] {
@@ -116,14 +108,14 @@ struct ChooseGroupMembersView: View {
         }
         .navigationTitle("novo grupo")
         .toolbar{
-            ToolbarItem(placement: .cancellationAction) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .resizable()
-                }
-            }
+//            ToolbarItem(placement: .cancellationAction) {
+//                Button {
+//                    dismiss()
+//                } label: {
+//                    Image(systemName: "xmark")
+//                        .resizable()
+//                }
+//            }
             ToolbarItem{
                 Button {
                     isChoosingGroupMembers = false

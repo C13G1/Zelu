@@ -77,5 +77,16 @@ struct FriendsGroupsView: View {
                 showCreateGroupSheet = true
             }
         }
+        .onChange(of: showCreateGroupSheet) {
+            do {
+                let descriptor = FetchDescriptor<FriendGroup>()
+                let groups = try modelContext.fetch(descriptor)
+                
+                friendsGroupVM.friendsGroups = groups
+            } catch {
+                print("Erro ao buscar grupos: \(error)")
+            }
+            
+        }
     }
 }
