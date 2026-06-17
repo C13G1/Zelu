@@ -79,8 +79,10 @@ struct TabBar: View {
                 SearchView(viewModel: $viewModel, navigation: $navigation)
             case .ble:
                 BLEView(profile: viewModel.profile)
-            case .setMeta(_):
-                EmptyView()
+            case .setMeta(let friendVM):
+                SetMetaView(viewModel: friendVM)
+            case .groupDetails(let group):
+                GroupDetails(group: group)
             }
         }
         .offset(y: isHidden ? UIScreen.main.bounds.height * 0.18 : -UIScreen.main.bounds.height * 0.25)

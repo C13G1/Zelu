@@ -53,7 +53,7 @@ struct FriendsGroupsView: View {
                             .scaleEffect(1.5)
                     } else {
                         Image(systemName: "plus")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.backgoundGreen)
                             .fontWeight(.bold)
                             .font(.system(size: 64))
                     }

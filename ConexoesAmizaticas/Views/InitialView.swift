@@ -92,6 +92,8 @@ struct InitialView: View {
                             BLEView(profile: vm.profile)
                         case .setMeta(let friendVM):
                             SetMetaView(viewModel: friendVM)
+                        case .groupDetails(let group):
+                            GroupDetails(group: group)
                         }
                     }
                     .navigationDestination(isPresented: $showVacuoView) {
