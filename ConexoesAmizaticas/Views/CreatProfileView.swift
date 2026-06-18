@@ -103,6 +103,7 @@ struct CreatProfileView: View {
                 .padding(.top, 40)
             }
         }
+        .dismissKeyboardOnTap()
     }
 }
 

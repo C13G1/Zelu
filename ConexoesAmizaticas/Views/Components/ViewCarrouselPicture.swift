@@ -60,7 +60,7 @@ struct ViewCarrouselPicture: View {
                         }
                     }
                     .frame(width: 72, height: 72)
-                    .glassEffect()
+                    .glassEffectCompat()
                     
                     Button(action: { showDeleteAlert = true }) {
                         ZStack {
@@ -71,7 +71,7 @@ struct ViewCarrouselPicture: View {
                         }
                     }
                     .frame(width: 72, height: 72)
-                    .glassEffect()
+                    .glassEffectCompat()
                 }
                 .padding(.top, 40)
             }
@@ -81,6 +81,18 @@ struct ViewCarrouselPicture: View {
             Button("Cancelar", role: .cancel) { }
         } message: {
             Text("Essa foto será removida permanentemente.")
+        }
+    }
+}
+
+private extension View {
+    /// Applies the iOS 26 Liquid Glass effect when available; a no-op on earlier versions.
+    @ViewBuilder
+    func glassEffectCompat() -> some View {
+        if #available(iOS 26.0, *) {
+            glassEffect()
+        } else {
+            self
         }
     }
 }

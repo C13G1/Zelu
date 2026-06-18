@@ -51,7 +51,7 @@ struct TabBar: View {
                                 
                                 Spacer()
                                 
-                                NavigationLink(value: AppRoute.ble) {
+                                NavigationLink(destination: NearbyPeopleView(profile: user)) {
                                     ZStack {
                                         Circle()
                                             .frame(width: width * 0.15)

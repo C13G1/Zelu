@@ -218,16 +218,24 @@ final class NearbyManager: NSObject {
     /// Updates the `people` list shown on screen, closest people first. People measured farther
     /// than `maxVisibleDistanceMeters` are left out. Called after any change.
     private func rebuildGrid() {
-        people = peers.values
-            .filter { peer in
+        // One entry per person. The same person can reconnect under a new `MCPeerID` (a fresh object
+        // with the same display name), leaving two dict entries with the same `user.id`. Two grid
+        // cells with the same id crash the radar's `ForEach`, so collapse duplicates here.
+        var seen = Set<UUID>()
+        people = peers
+            .compactMap { (peerID, peer) -> NearbyPerson? in
+                // Only show a person once we are actually connected and ready to exchange data
+                // (mocks aside). Mirrors the BLE flow: nobody shows while the connection is still
+                // coming up, which also keeps half-open peers out of the grid.
+                guard peer.isMock || session?.connectedPeers.contains(peerID) == true else { return nil }
                 // Without a reading the person stays visible: the estimate may never come, for
                 // example when Bluetooth is off on either side.
-                guard let meters = peer.distanceMeters else { return true }
-                return meters <= Self.maxVisibleDistanceMeters
+                if let meters = peer.distanceMeters, meters > Self.maxVisibleDistanceMeters { return nil }
+                guard seen.insert(peer.user.id).inserted else { return nil }
+                return NearbyPerson(user: peer.user, hasPhoto: peer.hasPhoto,
+                                    sentInvite: peer.iInvited, receivedInvite: peer.theyInvited,
+                                    proximity: peer.proximity)
             }
-            .map { NearbyPerson(user: $0.user, hasPhoto: $0.hasPhoto,
-                                sentInvite: $0.iInvited, receivedInvite: $0.theyInvited,
-                                proximity: $0.proximity) }
             .sorted {
                 if $0.proximity != $1.proximity { return $0.proximity > $1.proximity }
                 return $0.user.name.localizedCaseInsensitiveCompare($1.user.name) == .orderedAscending
@@ -401,6 +409,8 @@ extension NearbyManager: MCSessionDelegate {
             guard let self else { return }
             switch state {
             case .connected:
+                // Ready to exchange data now, so the person can appear on the radar.
+                self.rebuildGrid()
                 // Send our photo so the placeholder upgrades to the real picture.
                 self.send(self.profilePacket(), to: peerID)
                 self.schedulePhotoRetry(for: peerID)

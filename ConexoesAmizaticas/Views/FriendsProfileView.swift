@@ -150,23 +150,40 @@ struct FriendsProfileView: View {
             }
         }
         .toolbar {
-            ToolbarItem {
-                // ✅ Usa NavigationLink(value:) — SetMetaView resolvida pelo
-                // .navigationDestination(for: AppRoute.self) no InitialView
-                NavigationLink(value: AppRoute.setMeta(viewModel)) {
-                    ZStack {
-                        if SetMetaOnboarding {
-                            Circle()
-                                .frame(height: UIScreen.main.bounds.height * 0.063)
-                                .foregroundStyle(.white)
+            // .navigationDestination(for: AppRoute.self) no InitialView resolve SetMetaView.
+            // sharedBackgroundVisibility é iOS 26+, então só aplica quando disponível.
+            if #available(iOS 26.0, *) {
+                ToolbarItem {
+                    NavigationLink(value: AppRoute.setMeta(viewModel)) {
+                        ZStack {
+                            if SetMetaOnboarding {
+                                Circle()
+                                    .frame(height: UIScreen.main.bounds.height * 0.063)
+                                    .foregroundStyle(.white)
+                            }
+                            Image(systemName: "gear")
+                                .font(.system(size: 24))
+                                .foregroundColor(.black)
                         }
-                        Image(systemName: "gear")
-                            .font(.system(size: 24))
-                            .foregroundColor(.black)
+                    }
+                }
+                .sharedBackgroundVisibility(.hidden)
+            } else {
+                ToolbarItem {
+                    NavigationLink(value: AppRoute.setMeta(viewModel)) {
+                        ZStack {
+                            if SetMetaOnboarding {
+                                Circle()
+                                    .frame(height: UIScreen.main.bounds.height * 0.063)
+                                    .foregroundStyle(.white)
+                            }
+                            Image(systemName: "gear")
+                                .font(.system(size: 24))
+                                .foregroundColor(.black)
+                        }
                     }
                 }
             }
-            .sharedBackgroundVisibility(.hidden)
         }
     }
 }

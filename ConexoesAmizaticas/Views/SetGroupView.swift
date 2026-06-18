@@ -132,6 +132,7 @@ struct SetGroupView: View {
                 .buttonStyle(.borderedProminent)
             }
         }
+        .dismissKeyboardOnTap()
     }
 }
 

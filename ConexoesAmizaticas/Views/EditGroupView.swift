@@ -152,6 +152,7 @@ struct EditGroupView: View {
             .onChange(of: isSheetShowing) {
                 viewModel.group.connections = selectedConecctions
             }
+            .dismissKeyboardOnTap()
         }
     }
 }
