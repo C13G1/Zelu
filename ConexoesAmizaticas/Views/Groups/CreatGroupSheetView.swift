@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftData
 
-// TODO: Bullet Plz documenta este arquivo <3
+/// Hosts the two-step group creation flow in a sheet: choosing members, then naming/finishing the group.
 struct CreatGroupSheetView: View {
     @State var isChoosingGroupMembers = true
     @State var selectedConnections: [Connection] = []

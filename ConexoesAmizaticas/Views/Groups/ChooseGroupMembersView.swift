@@ -5,9 +5,11 @@
 //  Created by Jonas Fernando Nascimento Melo on 15/06/26.
 //
 
-// TODO: Bullet Plz componentiza e documenta este arquivo <3 
 import SwiftUI
 import SwiftData
+
+/// First step of group creation: pick which friends join the group. Shows the already-picked members
+/// in a strip on top and the full contact list grouped alphabetically below, with search.
 struct ChooseGroupMembersView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var isChoosingGroupMembers: Bool
@@ -47,17 +49,7 @@ struct ChooseGroupMembersView: View {
                         ScrollView(.horizontal,showsIndicators: false){
                             LazyHGrid(rows: [GridItem(.flexible())], spacing: 16){
                                 ForEach(selectedConecctions){ connection in
-                                    VStack{
-                                        Image(uiImage: UIImage(data: connection.friend.profilePicture) ?? UIImage(named: "defaultPicture")!)
-                                            .resizable()
-                                            .frame(width: UIScreen.main.bounds.width * 0.16, height: UIScreen.main.bounds.width * 0.16)
-                                            .clipShape(Circle())
-                                            .overlay {
-                                                Circle()
-                                                    .stroke(Color(uiColor: connection.metaManager.currentRelationshipState.color), lineWidth: 3)
-                                            }
-                                        Text(connection.friend.name)
-                                    }
+                                    MemberAvatar(connection: connection)
                                 }
                             }
                             .padding()
@@ -76,27 +68,17 @@ struct ChooseGroupMembersView: View {
                             
                             LazyVGrid(columns: columns, spacing: 16) {
                                 ForEach(section.value) { connection in
-                                    VStack{
-                                        Image(uiImage: UIImage(data: connection.friend.profilePicture) ?? UIImage(named: "defaultPicture")!)
-                                            .resizable()
-                                            .frame(width: UIScreen.main.bounds.width * 0.16, height: UIScreen.main.bounds.width * 0.16)
-                                            .clipShape(Circle())
-                                            .overlay {
-                                                Circle()
-                                                    .stroke(Color(uiColor: connection.metaManager.currentRelationshipState.color), lineWidth: 3)
+                                    MemberAvatar(connection: connection)
+                                        .onTapGesture {
+                                            if let index = selectedConecctions.firstIndex(where: { $0.id == connection.id }) {
+                                                selectedConecctions.remove(at: index)
+                                            } else {
+                                                let insertIndex = selectedConecctions.firstIndex(where: {
+                                                    $0.friend.getName() > connection.friend.getName()
+                                                }) ?? selectedConecctions.endIndex
+                                                selectedConecctions.insert(connection, at: insertIndex)
                                             }
-                                        Text(connection.friend.name)
-                                    }
-                                    .onTapGesture {
-                                        if let index = selectedConecctions.firstIndex(where: { $0.id == connection.id }) {
-                                            selectedConecctions.remove(at: index)
-                                        } else {
-                                            let insertIndex = selectedConecctions.firstIndex(where: {
-                                                $0.friend.getName() > connection.friend.getName()
-                                            }) ?? selectedConecctions.endIndex
-                                            selectedConecctions.insert(connection, at: insertIndex)
                                         }
-                                    }
                                 }
                             }
                         }

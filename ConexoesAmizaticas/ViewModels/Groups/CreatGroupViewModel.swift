@@ -11,7 +11,8 @@ import PhotosUI
 import SwiftData
 import Aptabase
 
-// TODO: Bullet Plz documenta este arquivo <3
+/// Backs the group-creation flow: holds the chosen name, photo and members, and persists the new
+/// `FriendGroup` to SwiftData.
 @Observable
 class CreatGroupViewModel{
     var name: String
