@@ -86,7 +86,7 @@ struct FriendsProfileView: View {
                     FriendStatsRow(viewModel: viewModel, lastMeetText: lastMeetDaysText)
 
                     RecordMomentButton(color: viewModel.getProfileColor()) {
-                        BLEView(profile: ownUser ?? User())
+                        BLEView(profile: ownUser ?? User(), targetFriend: viewModel.connection.friend)
                     }
 
                     AddPictureButton(viewModel: feedViewModel, color: viewModel.getProfileColor())
