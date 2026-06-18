@@ -8,6 +8,8 @@
 import SwiftUI
 import SpriteKit
 
+/// Detail screen for a single group — shows its members in a `FriendsScene` orbit, plus shortcuts to
+/// search within the group and to edit it.
 struct GroupDetails: View {
     @Binding var navigation: NavigationPath
     var group: FriendGroup

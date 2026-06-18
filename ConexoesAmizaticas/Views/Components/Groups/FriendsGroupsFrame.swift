@@ -1,5 +1,5 @@
 //
-//  FriendsGroupsView.swift
+//  FriendsGroupsFrame.swift
 //  ConexoesAmizaticas
 //
 //  Created by Thomas Pinheiro Grandin on 12/06/26.
@@ -7,6 +7,8 @@
 import SwiftUI
 
 
+/// Tappable group tile — circular photo ringed by the group's `averageConnectionStrength` color, with
+/// its name below. Navigates to `GroupDetails`.
 struct FriendsGroupsFrame: View {
     var group: FriendGroup
     var width = UIScreen.main.bounds.width

@@ -9,6 +9,8 @@ import SwiftUI
 import SwiftData
 import Aptabase
 
+/// App entry point — sets up Aptabase analytics, requests notification access when enabled, and builds
+/// the shared SwiftData `ModelContainer` from `AppSchema`.
 @main
 struct ConexoesAmizaticasApp: App {
     @AppStorage("isNotificationAllowed") var isNotificationAllowed: Bool = false

@@ -9,6 +9,7 @@ import SwiftUI
 import PhotosUI
 import SwiftData
 
+/// Final step of group creation — set the group's photo and name, review the members, and save it.
 struct SetGroupView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

@@ -9,6 +9,7 @@ import SwiftUI
 import PhotosUI
 import SwiftData
 
+/// Screen to edit an existing group — change its photo, name and members, or delete it.
 struct EditGroupView: View {
     @Environment(\.modelContext) private var modelContext
     @State var viewModel: EditGroupViewModel?

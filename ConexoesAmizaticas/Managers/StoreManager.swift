@@ -1,5 +1,5 @@
 //
-//  Untitled.swift
+//  StoreManager.swift
 //  ConexoesAmizaticas
 //
 //  Created by Jonas Fernando Nascimento Melo on 12/06/26.
@@ -9,6 +9,8 @@ import StoreKit
 import SwiftUI
 import Combine
 
+/// Handles StoreKit purchases: loads products, runs purchase/restore flows, listens for transaction
+/// updates and tracks whether the user owns the premium ("Group") entitlement.
 @MainActor
 class StoreKitManager: ObservableObject {
     static let shared = StoreKitManager()

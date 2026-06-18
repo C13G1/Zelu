@@ -10,6 +10,7 @@ import PhotosUI
 import SwiftData
 
 
+/// Paged welcome flow shown on first launch, ending on `CreatProfileView` to set up the user profile.
 struct OnboardingView: View {
     @State private var currentPage = 0
     

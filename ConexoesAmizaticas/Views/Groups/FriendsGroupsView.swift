@@ -10,6 +10,7 @@ import SwiftData
 import StoreKit
 
 
+/// The groups section under the tab bar: the carousel of existing groups and the create-group button.
 struct FriendsGroupsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var friendsGroupVM: FriendsGroupsViewModel

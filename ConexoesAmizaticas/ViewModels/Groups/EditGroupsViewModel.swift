@@ -10,6 +10,7 @@ import SwiftUI
 import PhotosUI
 import SwiftData
 
+/// Backs `EditGroupView`: edits an existing `FriendGroup`'s name, photo and members, persisting changes.
 @Observable
 class EditGroupViewModel {
     var group: FriendGroup
