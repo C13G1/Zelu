@@ -88,6 +88,11 @@ struct FriendsGroupsView: View {
     /// Reloads the products first if the store hasn't finished loading, and surfaces an alert instead
     /// of silently doing nothing when the product is unavailable (offline or not yet approved).
     private func purchaseGroup() async {
+        // The first group is free; only charge once the user already has at least one group.
+        if friendsGroupVM.friendsGroups.isEmpty {
+            showCreateGroupSheet = true
+            return
+        }
         if storeManager.products.isEmpty {
             await storeManager.loadProducts()
         }
