@@ -58,28 +58,16 @@ struct UserProfileView: View {
         }
         .background(.lightBackground)
         .toolbar {
-            if #available(iOS 26.0, *) {
-                ToolbarItem {
-                    NavigationLink {
-                        EditProfileView(vm: $vm)
-                    } label: {
-                        Image(systemName: "gear")
-                            .font(.system(size: 24))
-                            .foregroundColor(.black)
-                    }
-                }
-                .sharedBackgroundVisibility(.hidden)
-            } else {
-                ToolbarItem {
-                    NavigationLink {
-                        EditProfileView(vm: $vm)
-                    } label: {
-                        Image(systemName: "gear")
-                            .font(.system(size: 24))
-                            .foregroundColor(.black)
-                    }
+            ToolbarItem {
+                NavigationLink {
+                    EditProfileView(vm: $vm)
+                } label: {
+                    Image(systemName: "gear")
+                        .font(.system(size: 24))
+                        .foregroundColor(.black)
                 }
             }
+            .hiddenSharedBackgroundIfAvailable()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
