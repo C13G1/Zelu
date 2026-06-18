@@ -158,10 +158,17 @@ class FriendsScene: SKScene {
         }
     }
 
-    /// Checks whether the given scene-space point lies over the central spiral node.
-    /// Allows overlapping friend nodes to forward their touch sequence to the scene so the spiral tap still wins.
+    /// Radius, in scene units, of the circular tap area for the central spiral. The spiral sprite is
+    /// 122x122 with transparent padding, so this stays under half the sprite to match the artwork.
+    private let spiralTapRadius: CGFloat = 55
+
+    /// Checks whether the given scene-space point lies within the circular tap area of the spiral.
     func isTouchOverSpiral(_ sceneLocation: CGPoint) -> Bool {
-        nodes(at: sceneLocation).contains { $0.name == "spiral" }
+        guard let spiral = rootNode.childNode(withName: "spiral") else { return false }
+        let p = rootNode.convert(sceneLocation, from: self)
+        let dx = p.x - spiral.position.x
+        let dy = p.y - spiral.position.y
+        return dx * dx + dy * dy <= spiralTapRadius * spiralTapRadius
     }
 
     /// Updates the active search filter and re-synchronizes the visible nodes so the unmatched ones
@@ -182,10 +189,11 @@ class FriendsScene: SKScene {
         let tan = (location.x) / (location.y)
         touchOffset = atan(tan)
 
-        // The scene only receives the touch when no friend node consumed it, or when a friend node
-        // explicitly forwarded the sequence because the spiral was sitting beneath the press.
-        // In both cases the spiral wins as long as it is in `nodes(at:)`.
-        touchStartedOnSpiral = nodes(at: sceneLocation).contains { $0.name == "spiral" }
+        // The scene only receives the touch when no friend node consumed it, so a tap here is on the
+        // background or the spiral. Friend nodes always keep their own taps now, so the spiral only
+        // needs its own circular hit-test (the sprite is a padded square — `nodes(at:)` would also
+        // fire on the empty corners around the artwork).
+        touchStartedOnSpiral = isTouchOverSpiral(sceneLocation)
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
