@@ -29,7 +29,7 @@ struct TabBar: View {
                     .overlay() {
                         ZStack {
                             HStack {
-                                NavigationLink(value: AppRoute.search) {
+                                NavigationLink(value: AppRoute.search([])) {
                                     ZStack {
                                         Circle()
                                             .frame(width: width * 0.15)
@@ -77,8 +77,8 @@ struct TabBar: View {
         }
         .navigationDestination(for: AppRoute.self) { route in
             switch route {
-            case .search:
-                SearchView(viewModel: $viewModel, navigation: $navigation)
+            case .search(let filterConnections):
+                SearchView(viewModel: $viewModel, navigation: $navigation, connectionsFilter: filterConnections)
             case .ble:
                 BLEView(profile: viewModel.profile)
             case .setMeta(let friendVM):

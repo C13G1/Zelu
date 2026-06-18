@@ -11,7 +11,7 @@ import Foundation
 /// Todos os NavigationLink usam `NavigationLink(value:)` com esse enum —
 /// o NavigationStack do InitialView é o único responsável por resolver os destinos.
 enum AppRoute: Hashable {
-    case search
+    case search([Connection])
     case ble
     case setMeta(FriendProfileViewModel)
     case groupDetails(FriendGroup)
@@ -30,8 +30,9 @@ enum AppRoute: Hashable {
  
     func hash(into hasher: inout Hasher) {
         switch self {
-        case .search:
+        case .search(let filterConnections):
             hasher.combine(0)
+            hasher.combine(filterConnections)
         case .ble:
             hasher.combine(1)
         case .setMeta(let vm):

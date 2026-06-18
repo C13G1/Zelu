@@ -78,8 +78,8 @@ struct InitialView: View {
                     }
                     .navigationDestination(for: AppRoute.self) { route in
                         switch route {
-                        case .search:
-                            SearchView(viewModel: $vm, navigation: $navigation)
+                        case .search(let filterConnections):
+                            SearchView(viewModel: $vm, navigation: $navigation, connectionsFilter: filterConnections)
                         case .ble:
                             BLEView(profile: vm.profile)
                         case .setMeta(let friendVM):

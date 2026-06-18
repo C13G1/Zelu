@@ -27,7 +27,15 @@ struct SearchView: View {
         scene.scaleMode = .aspectFill
         return scene
     }()
+    
+    private var connectionsFilter: [Connection]
 
+    init(viewModel: Binding<InitialViewModel>, navigation: Binding<NavigationPath>, connectionsFilter: [Connection] = []){
+        _viewModel = viewModel
+        _navigation = navigation
+        self.connectionsFilter = connectionsFilter
+    }
+    
     var body: some View {
         @Bindable var bindable = searchViewModel
 
@@ -49,15 +57,18 @@ struct SearchView: View {
             placement: .navigationBarDrawer(displayMode: .always)
         )
         .onAppear {
-            scene.updateConnections(receivedConnections: Set(connections))
+            let active = connectionsFilter.isEmpty ? connections : connectionsFilter
+            searchViewModel.connections = active
+            scene.updateConnections(receivedConnections: Set(active))
+            scene.updateNodeVisuals()
             scene.onFriendTapped = { connection in
-                // ✅ Appenda no path do InitialView, não no navPath local
                 DispatchQueue.main.async {
                     navigation.append(connection)
                 }
             }
         }
         .onChange(of: connections, initial: true) { _, newConnections in
+            guard connectionsFilter.isEmpty else { return }  
             searchViewModel.connections = newConnections
             scene.updateConnections(receivedConnections: Set(newConnections))
             scene.updateNodeVisuals()

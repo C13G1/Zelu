@@ -42,7 +42,7 @@ struct GroupDetails: View {
                 Spacer()
                 
                 HStack (spacing: width * 0.52){
-                    NavigationLink(value: AppRoute.search) {
+                    NavigationLink(value: AppRoute.search(group.connections)) {
                         ZStack {
                             Circle()
                                 .frame(width: width * 0.15)
