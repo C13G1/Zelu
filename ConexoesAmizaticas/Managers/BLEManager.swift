@@ -18,6 +18,15 @@ struct UserDTO: Codable {
     var id: UUID
 }
 
+/// Identity exchanged BEFORE any profile, so both devices can agree the encounter is mutual before
+/// committing. Each side carries its own user id plus the id it is specifically looking for (`targetID`,
+/// `nil` when open to anyone). A match proceeds only when both sides accept each other — see
+/// `BLEManager.decodeData` — which guarantees a connection is never one-sided.
+struct Handshake: Codable {
+    var id: UUID
+    var targetID: UUID?
+}
+
 /// A manager responsible for discovering and establishing Bluetooth Low Energy (BLE) connections with nearby peers.
 ///
 /// `BLEManager` acts as both a Central and a Peripheral. It broadcasts the user's profile and scans for other users
@@ -55,21 +64,38 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     var outputStream: OutputStream!
     var dataStream: Data = Data()
 
-    /// Outgoing profile payload and the number of bytes already written to the stream.
+    /// Outgoing byte queue (handshake, then profile, then ACK) and the number of bytes already written.
     ///
     /// L2CAP `OutputStream.write` is not guaranteed to accept the whole payload in one call — it writes
     /// as much as the kernel buffer currently holds and returns that count. The remaining bytes must be
     /// flushed on subsequent `.hasSpaceAvailable` events; without this the tail of a larger image was
     /// silently dropped, which is why the picture had to be shrunk to a tiny thumbnail to fit one write.
-    private var pendingProfileData: Data = Data()
+    private var pendingOutgoing: Data = Data()
     private var sentByteCount: Int = 0
 
     /// The profile of the current user that will be transmitted to peers.
     let profile: User
+    /// The id of the one friend this session is allowed to match, or `nil` when open to anyone (the
+    /// normal "find whoever is nearby" mode). When set, only a mutually-agreed encounter with this
+    /// exact person is confirmed.
+    let targetFriendID: UUID?
+    /// True once our handshake has been added to the outgoing queue (sent before the profile).
+    private var didQueueHandshake = false
     /// True once our profile has been added to the outgoing queue (so we queue it only once).
     private var didQueueProfile = false
     /// True once our ACK byte has been added to the outgoing queue.
     private var didQueueAck = false
+
+    /// True once the peer's handshake (identity + target) arrived and we computed mutual acceptance.
+    private var didReceiveHandshake = false
+    /// True only when both sides accepted each other in the handshake; gates sending our profile.
+    private var mutualAccepted = false
+
+    /// Peripherals we just rejected in a handshake, with the time their cooldown ends. Without this, a
+    /// rejected peer stays discoverable (it rescans too) and we'd reconnect to it immediately, spinning a
+    /// reject loop while hunting a target who isn't around. Cleared only on `stopBLE`, not per attempt.
+    private var rejectedPeripherals: [UUID: Date] = [:]
+    private static let rejectCooldownSeconds: TimeInterval = 15
 
     /// True once we've committed to a peer this cycle, so extra `didDiscover` callbacks are ignored.
     private var isPairing = false
@@ -95,8 +121,9 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
     /// distant one whose handshake is more likely to be slow or to collide with other pairings.
     private static let minimumRSSI: Int = -75
 
-    init(profile: User) {
+    init(profile: User, targetFriendID: UUID? = nil) {
         self.profile = profile
+        self.targetFriendID = targetFriendID
         super.init()
     }
 
@@ -128,6 +155,7 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         peripheralManager?.delegate = nil
         peripheralManager = nil
         psm = nil
+        rejectedPeripherals.removeAll()
     }
 
     /// Clears all per-attempt state and tears down the current link, without touching the managers.
@@ -141,10 +169,13 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             connectedPeripheral = nil
         }
         dataStream = Data()
-        pendingProfileData = Data()
+        pendingOutgoing = Data()
         sentByteCount = 0
+        didQueueHandshake = false
         didQueueProfile = false
         didQueueAck = false
+        didReceiveHandshake = false
+        mutualAccepted = false
         isPairing = false
         didReceiveFriend = false
         didReceiveAck = false
@@ -253,6 +284,11 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         // Only commit to one peer per cycle; ignore the stream of repeat discoveries and anything
         // arriving after we've already paired.
         guard !isPairing, !didReceiveFriend else { return }
+        // Skip a peer we just rejected in a handshake so we don't immediately reconnect and loop.
+        if let until = rejectedPeripherals[peripheral.identifier] {
+            if until > Date() { return }
+            rejectedPeripherals[peripheral.identifier] = nil
+        }
         guard let keyString = advertisementData[CBAdvertisementDataLocalNameKey] as? String,
               let peripheralKey = Int(keyString) else { return }
 
@@ -456,23 +492,47 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
-    /// Decodes the received stream: first the length-prefixed `User` profile frame, then a trailing
-    /// single ACK byte confirming the peer received our profile.
+    /// Pops one length-prefixed frame (4-byte big-endian length + payload) off the front of `dataStream`,
+    /// or returns nil if the whole frame hasn't arrived yet. Any trailing bytes are left in the buffer.
+    private func popFrame() -> Data? {
+        guard dataStream.count >= 4 else { return nil }
+        let expectedLength = dataStream.withUnsafeBytes {
+            Int(UInt32(bigEndian: $0.load(as: UInt32.self)))
+        }
+        guard dataStream.count >= expectedLength + 4 else {
+            print("aguardando dados: \(dataStream.count)/\(expectedLength + 4) bytes")
+            return nil
+        }
+        let payload = dataStream.subdata(in: 4..<expectedLength + 4)
+        dataStream.removeSubrange(0..<expectedLength + 4)
+        return payload
+    }
+
+    /// Decodes the received stream in three stages: the peer's handshake (identity + target), then the
+    /// length-prefixed `User` profile, then a trailing ACK byte confirming the peer received our profile.
     func decodeData() throws {
-        if !didReceiveFriend {
-            guard dataStream.count >= 4 else { return }
-            let expectedLength = dataStream.withUnsafeBytes {
-                Int(UInt32(bigEndian: $0.load(as: UInt32.self)))
-            }
-            guard dataStream.count >= expectedLength + 4 else {
-                print("aguardando dados: \(dataStream.count)/\(expectedLength + 4) bytes")
+        // Stage 1 — handshake. Decide mutual acceptance before exchanging or revealing anything else.
+        // A match proceeds only if both sides accept; otherwise the peer is dropped and never surfaced
+        // to the UI, so an encounter can never be one-sided.
+        if !didReceiveHandshake {
+            guard let frame = popFrame() else { return }
+            let peer = try JSONDecoder().decode(Handshake.self, from: frame)
+            didReceiveHandshake = true
+            let weAcceptPeer = targetFriendID == nil || targetFriendID == peer.id
+            let peerAcceptsUs = peer.targetID == nil || peer.targetID == profile.id
+            mutualAccepted = weAcceptPeer && peerAcceptsUs
+            guard mutualAccepted else {
+                print("handshake recusado (peer \(peer.id))")
+                rejectPeer()
                 return
             }
-            let jsonData = dataStream.subdata(in: 4..<expectedLength + 4)
-            let friendDTO = try JSONDecoder().decode(UserDTO.self, from: jsonData)
+            queueProfile()   // mutual — now safe to reveal our profile
+        }
+        // Stage 2 — peer's profile.
+        if mutualAccepted, !didReceiveFriend {
+            guard let frame = popFrame() else { return }
+            let friendDTO = try JSONDecoder().decode(UserDTO.self, from: frame)
             let friend = User(name: friendDTO.name, profilePicture: friendDTO.profilePicture, id: friendDTO.id)
-            // Drop the consumed profile frame; keep any trailing bytes (the peer's ACK may already be here).
-            dataStream.removeSubrange(0..<expectedLength + 4)
             print("data decoded: \(friend.name)")
             didReceiveFriend = true
             pairingTimeoutTimer?.invalidate()
@@ -480,8 +540,8 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             queueAck()   // tell the peer we received their full profile
             onFriendFound?(friend)
         }
-        // A trailing ACK byte means the peer received OUR profile. Now both sides have the data, so
-        // it's safe to close.
+        // Stage 3 — a trailing ACK byte means the peer received OUR profile. Both sides now have the
+        // data, so it's safe to close.
         if didReceiveFriend, !didReceiveAck, dataStream.contains(BLEManager.ackByte) {
             dataStream = Data()
             didReceiveAck = true
@@ -490,13 +550,22 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
-    /// Queues our ACK byte. Always queues our profile first, so on the wire the peer reads
-    /// [profile][ack] in order and never mistakes the ACK byte for the profile's length prefix.
+    /// Drops a peer after a non-mutual handshake: remembers it briefly (so we don't reconnect and loop),
+    /// then tears down and rescans. The peer is never surfaced to the UI.
+    private func rejectPeer() {
+        if let id = connectedPeripheral?.identifier {
+            rejectedPeripherals[id] = Date().addingTimeInterval(BLEManager.rejectCooldownSeconds)
+        }
+        restartDiscovery(reason: "handshake mismatch")
+    }
+
+    /// Queues our ACK byte. The profile is already queued by this point (stage 1 of `decodeData`), so on
+    /// the wire the peer reads [handshake][profile][ack] in order and never mistakes the ACK byte for a
+    /// frame length prefix.
     private func queueAck() {
-        queueProfile()
         guard !didQueueAck else { return }
         didQueueAck = true
-        pendingProfileData.append(BLEManager.ackByte)
+        pendingOutgoing.append(BLEManager.ackByte)
         flushOutgoing()
     }
 
@@ -505,10 +574,10 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         case .hasBytesAvailable:
             receiveData()
         case .openCompleted:
-            if aStream === outputStream { queueProfile() }
+            if aStream === outputStream { queueHandshake() }
         case .hasSpaceAvailable:
             if aStream === outputStream {
-                queueProfile()
+                queueHandshake()
                 flushOutgoing()
             }
         case .errorOccurred:
@@ -526,9 +595,28 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         }
     }
 
+    /// Appends a length-prefixed frame (4-byte big-endian length + payload) to the outgoing queue.
+    private func appendFrame(_ payload: Data) {
+        var length = UInt32(payload.count).bigEndian
+        pendingOutgoing.append(Data(bytes: &length, count: 4))
+        pendingOutgoing.append(payload)
+    }
+
+    /// Queues our handshake (our id + the friend we're looking for) exactly once. It's the first frame
+    /// sent on every connection, before any profile, so both sides can agree the encounter is mutual.
+    private func queueHandshake() {
+        guard !didQueueHandshake else { return }
+        let handshake = Handshake(id: profile.id, targetID: targetFriendID)
+        guard let jsonData = try? JSONEncoder().encode(handshake) else { return }
+        didQueueHandshake = true
+        appendFrame(jsonData)
+        flushOutgoing()
+    }
+
     /// Adds our profile to the outgoing queue exactly once, framed with a 4-byte big-endian length
     /// prefix. The bytes are streamed out by `flushOutgoing()` across multiple `.hasSpaceAvailable`
     /// events, so a full-size picture can be sent safely. Encoding failure is ignored (profile stays unsent).
+    /// Only ever called once the handshake confirmed a mutual match.
     private func queueProfile() {
         guard !didQueueProfile else { return }
         let pictureToSend: Data
@@ -544,21 +632,19 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
         guard let jsonData = try? JSONEncoder().encode(profileDTO) else { return }
 
         didQueueProfile = true
-        var length = UInt32(jsonData.count).bigEndian
-        pendingProfileData.append(Data(bytes: &length, count: 4))
-        pendingProfileData.append(jsonData)
-        print("queued profile payload (\(pendingProfileData.count) bytes)")
+        appendFrame(jsonData)
+        print("queued profile payload (\(pendingOutgoing.count) bytes)")
         flushOutgoing()
     }
 
     /// Writes as many queued bytes as the stream currently accepts, advancing `sentByteCount`.
     /// Re-invoked on every `.hasSpaceAvailable` event until the queue is fully drained.
     private func flushOutgoing() {
-        guard let output = outputStream, sentByteCount < pendingProfileData.count else { return }
+        guard let output = outputStream, sentByteCount < pendingOutgoing.count else { return }
 
-        while sentByteCount < pendingProfileData.count, output.hasSpaceAvailable {
-            let remaining = pendingProfileData.count - sentByteCount
-            let written = pendingProfileData.withUnsafeBytes { raw -> Int in
+        while sentByteCount < pendingOutgoing.count, output.hasSpaceAvailable {
+            let remaining = pendingOutgoing.count - sentByteCount
+            let written = pendingOutgoing.withUnsafeBytes { raw -> Int in
                 guard let base = raw.bindMemory(to: UInt8.self).baseAddress else { return -1 }
                 return output.write(base + sentByteCount, maxLength: remaining)
             }
@@ -569,10 +655,10 @@ class BLEManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerDelegat
             sentByteCount += written
         }
 
-        if sentByteCount >= pendingProfileData.count {
-            print("payload fully sent (\(pendingProfileData.count) bytes)")
+        if sentByteCount >= pendingOutgoing.count {
+            print("payload fully sent (\(pendingOutgoing.count) bytes)")
         } else {
-            print("payload partially sent (\(sentByteCount)/\(pendingProfileData.count) bytes), awaiting space")
+            print("payload partially sent (\(sentByteCount)/\(pendingOutgoing.count) bytes), awaiting space")
         }
     }
 }

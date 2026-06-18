@@ -28,8 +28,8 @@ struct BLEView: View {
     
     private let avatarDiameter: CGFloat = 132
 
-    init(profile: User, presetFriend: User? = nil) {
-        _viewModel = State(initialValue: BLEViewModel(profile: profile, presetFriend: presetFriend))
+    init(profile: User, presetFriend: User? = nil, targetFriend: User? = nil) {
+        _viewModel = State(initialValue: BLEViewModel(profile: profile, presetFriend: presetFriend, targetFriend: targetFriend))
     }
 
     var body: some View {
@@ -256,7 +256,7 @@ struct BLEView: View {
 
     private var searchingText: some View {
         VStack(spacing: 14) {
-            Text("Buscando contatos por perto...")
+            Text(viewModel.targetFriendName.map { "Procurando \($0) por perto..." } ?? "Buscando contatos por perto...")
                 .font(.custom("Sora-ExtraBold", size: 26))
                 .foregroundStyle(Color.white)
                 .multilineTextAlignment(.center)

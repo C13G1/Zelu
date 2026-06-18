@@ -59,9 +59,18 @@ class BLEViewModel {
     private let presetFriend: User?
     var isPreset: Bool { presetFriend != nil }
 
-    init(profile: User, presetFriend: User? = nil) {
+    /// When set (entered from a specific friend's profile), only this friend may be matched. BLE still
+    /// scans everyone — peer identity is only known after the profile exchange — but any other peer is
+    /// rejected and discovery resumes, so the screen can only confirm an encounter with this person.
+    private let targetFriendID: UUID?
+    /// Name of the targeted friend, shown in the searching copy ("Procurando <name> por perto...").
+    let targetFriendName: String?
+
+    init(profile: User, presetFriend: User? = nil, targetFriend: User? = nil) {
         self.profile = profile
         self.presetFriend = presetFriend
+        self.targetFriendID = targetFriend?.id
+        self.targetFriendName = targetFriend?.name
         self.blNotificationManager = BluetoothNotificationManager()
     }
 
@@ -82,7 +91,7 @@ class BLEViewModel {
             bleManager.startBLE()
             return
         }
-        let manager = BLEManager(profile: profile)
+        let manager = BLEManager(profile: profile, targetFriendID: targetFriendID)
         manager.onConnectionOpened = { [weak self] in
             self?.foundFriend = true
         }
@@ -105,6 +114,8 @@ class BLEViewModel {
     /// Transitions to the `.matched` phase once the friend profile has fully arrived,
     /// and schedules the "search again" affordance to appear after a short delay.
     func tryTransitionToMatched() {
+        // The BLE handshake already guarantees only a mutually-accepted peer (and, in targeted mode,
+        // only the intended friend) ever reaches here, so any found friend is safe to match.
         guard foundFriend, friend != nil, phase == .searching else { return }
         showSearchAgainButton = false
         withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
