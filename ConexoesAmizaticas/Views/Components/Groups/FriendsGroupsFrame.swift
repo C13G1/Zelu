@@ -48,9 +48,9 @@ struct FriendsGroupsFrame: View {
 #Preview {
     let mockImage = UIImage(named: "defaultPicture")!
     let mockData = mockImage.pngData() ?? Data()
-    var connections: [Connection] = []
-    
-    var group = FriendGroup(name: "grupo 1", image: mockData, connections: connections)
+    let connections: [Connection] = []
+
+    let group = FriendGroup(name: "grupo 1", image: mockData, connections: connections)
     
     FriendsGroupsFrame(group: group)
         .preferredColorScheme(.dark)

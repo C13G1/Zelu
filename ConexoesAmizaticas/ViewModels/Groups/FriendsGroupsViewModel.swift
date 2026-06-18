@@ -18,10 +18,7 @@ import PhotosUI
 class FriendsGroupsViewModel {
     private(set) var modelContext : ModelContext!
     var friendsGroups: [FriendGroup] = []
-    
-    /// Temporarily stores the group that the user intends to delete, driving the overlay alert.
-    var friendsGroupToDelete: FriendGroup? = nil
-    
+
     var snappedItem:  Double = 0
     var draggingItem: Double = 0
     var activeIndex:  Int    = 0
@@ -71,31 +68,6 @@ class FriendsGroupsViewModel {
         catch {
             print("Erro ao salvar grupo")
         }
-    }
-    
-    /// Purges a specific memory from both the active array and the SwiftData store.
-    func deleteFriendsGroup(withId: UUID, context: ModelContext) {
-        let predicate = #Predicate<FriendGroup> { friendsGroup in
-            friendsGroup.id == withId
-        }
-        
-        var fetchDescriptor = FetchDescriptor<FriendGroup>(predicate: predicate)
-        fetchDescriptor.fetchLimit = 1
-        
-        do {
-            let fetchedFriendsGroup = try context.fetch(fetchDescriptor)
-            if let friendsGroupToDelete = fetchedFriendsGroup.first {
-                context.delete(friendsGroupToDelete)
-                try context.save()
-            }
-        } catch {
-            print("Failed to fetch or delete the friendsGroup: \(error.localizedDescription)")
-        }
-        refreshFriendsGroups()
-        
-        snappedItem = 0
-        draggingItem = 0
-        activeIndex = 0
     }
     
     func setModelContext(modelContext: ModelContext){
@@ -150,18 +122,20 @@ class FriendsGroupsViewModel {
     // MARK: - Gesture Tracking
     
     func onDragChanged(value: DragGesture.Value) {
-        draggingItem = snappedItem + value.translation.width / 500
+        draggingItem = snappedItem + value.translation.width / 150
     }
-    
+
     func onDragEnded(value: DragGesture.Value) {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
             let velocity = value.predictedEndTranslation.width - value.translation.width
-            let sensitivity: Double = 200
-            
-            let delta = (velocity / sensitivity).clamped(to: -1...1)
-            
+            let nudge = (velocity / 200).clamped(to: -1...1)
+
+            // Snap from where the finger actually left the carousel (`draggingItem` already
+            // includes the drag translation) plus a small velocity nudge for quick flicks.
+            // The old code snapped from `snappedItem` using velocity alone, so a slow drag
+            // released with little speed went nowhere.
             let postsCount = Double(max(friendsGroups.count, 1))
-            draggingItem = (snappedItem + delta)
+            draggingItem = (draggingItem + nudge)
                 .rounded()
                 .remainder(dividingBy: postsCount)
             snappedItem = draggingItem

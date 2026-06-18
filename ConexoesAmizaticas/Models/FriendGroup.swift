@@ -13,14 +13,15 @@ class FriendGroup {
     var id: UUID
     var name: String
     var image: Data
-    var connections: [Connection]
+    // Deleting a group must not delete the shared friends it points at, only drop the references.
+    // Default `[]` keeps this purely additive so SwiftData can lightweight-migrate without data loss.
+    @Relationship(deleteRule: .nullify) var connections: [Connection] = []
 
     /// The most common `RelationshipState` among the group's connections, used to color the group.
     /// Falls back to `.afastados` when the group is empty.
     var averageConnectionStrength: RelationshipState {
         guard !connections.isEmpty else { return .afastados }
-        
-        let allStates = RelationshipState.allCases
+
         var sum = [RelationshipState: Int]()
         
         for c in connections {

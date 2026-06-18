@@ -33,8 +33,8 @@ struct SetGroupView: View {
                                 Image(uiImage: uiImage)
                                     .resizable()
                                     .scaledToFill()
-                                    .clipShape(Circle())
                                     .frame(width: width * 0.394, height: width * 0.394)
+                                    .clipShape(Circle())
                             } else {
                                 Image("defaultPicture")
                                     .resizable()

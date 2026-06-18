@@ -12,14 +12,17 @@ import SwiftData
 /// Screen to edit an existing group — change its photo, name and members, or delete it.
 struct EditGroupView: View {
     @Environment(\.modelContext) private var modelContext
+    @Binding var navigation: NavigationPath
     @State var viewModel: EditGroupViewModel?
     @FocusState private var isNameFocused: Bool
     @State var isSheetShowing = false
+    @State private var showDeleteConfirm = false
     @State var selectedConecctions: [Connection]
     var width = UIScreen.main.bounds.width
     var height = UIScreen.main.bounds.height
-    
-    init(group: FriendGroup) {
+
+    init(group: FriendGroup, navigation: Binding<NavigationPath>) {
+        _navigation = navigation
         _selectedConecctions = State(initialValue: group.connections)
 
         _viewModel = State(initialValue:EditGroupViewModel(group: group,modelContext: modelContext))
@@ -114,14 +117,24 @@ struct EditGroupView: View {
                 .padding(.horizontal, UIScreen.main.bounds.width * 0.08)
                 
                 Button {
-                    viewModel.deletGroup()
-
+                    showDeleteConfirm = true
                 } label: {
                     Text("apagar grupo")
                         .foregroundStyle(.red)
                         .font(.custom("Sora", size: 15))
                 }
                 .padding(.top, height * 0.049)
+            }
+            .alert("Apagar grupo?", isPresented: $showDeleteConfirm) {
+                Button("Apagar", role: .destructive) {
+                    viewModel.deletGroup(context: modelContext)
+                    // Pop straight back to the groups list — the `GroupDetails` screen below in the
+                    // stack still points at the now-deleted group and would crash if shown.
+                    navigation = NavigationPath()
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Criar um novo grupo exigirá uma nova compra.")
             }
             .sheet(isPresented: $isSheetShowing) {
                 NavigationStack{
@@ -139,7 +152,7 @@ struct EditGroupView: View {
 #Preview {
     let mockImage = UIImage(named: "defaultPicture")!
     let mockData = mockImage.pngData() ?? Data()
-    var friendsGroup = FriendGroup(name: "Grupo Preview", image: mockData, connections: [
+    let friendsGroup = FriendGroup(name: "Grupo Preview", image: mockData, connections: [
         Connection(friend: User()),
         Connection(friend: User()),
         Connection(friend: User()),
@@ -149,5 +162,5 @@ struct EditGroupView: View {
         Connection(friend: User()),
         Connection(friend: User()),
     ])
-    EditGroupView(group: friendsGroup)
+    EditGroupView(group: friendsGroup, navigation: .constant(NavigationPath()))
 }

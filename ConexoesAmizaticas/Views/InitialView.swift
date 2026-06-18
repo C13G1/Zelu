@@ -87,7 +87,7 @@ struct InitialView: View {
                         case .groupDetails(let group):
                             GroupDetails(navigation: $navigation, group: group)
                         case .editGroup(let group):
-                            EditGroupView(group: group)
+                            EditGroupView(group: group, navigation: $navigation)
                         }
                     }
                     .navigationDestination(isPresented: $showVacuoView) {

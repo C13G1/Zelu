@@ -42,16 +42,19 @@ class EditGroupViewModel {
     func commitSelectedPhoto() async {
         guard let item = selectedPhoto,
               let data = try? await item.loadTransferable(type: Data.self) else { return }
-        group.image = data
+        // Square-crop so the new cover matches the circular containers without stretching.
+        group.image = UIImage(data: data)?.squareThumbnail(side: 512).jpegData(compressionQuality: 0.9) ?? data
         try? modelContext.save()
         NotificationCenter.default.post(name: .GroupUpdated, object: nil)
     }
-    //TODO: verificar pq não salva
-    func deletGroup(){
+    /// Deletes the group from the live `ModelContext` passed by the view. The context captured at init
+    /// is the environment's default (resolved before the view is in the hierarchy) and does not persist,
+    /// so deletion must use the context read from the view's body.
+    func deletGroup(context: ModelContext) {
+        context.delete(group)
         do {
-            modelContext.delete(group)
-            try modelContext.save()
-            print("Grupo deletado com sucesso")
+            try context.save()
+            NotificationCenter.default.post(name: .GroupUpdated, object: nil)
         } catch {
             print("Erro ao deletar: \(error)")
         }

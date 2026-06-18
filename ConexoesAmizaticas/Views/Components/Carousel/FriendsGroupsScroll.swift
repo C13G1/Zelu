@@ -36,15 +36,13 @@ struct FriendsGroupsScroll: View {
                             y: viewModel.yOffset(index)
                         )
                         .opacity(viewModel.opacity(index))
-                        .onTapGesture {
-                            // Triggers the deletion confirmation overlay located in the parent view.
-                            withAnimation {
-                                viewModel.friendsGroupToDelete = group
-                            }
-                        }
                 }
             }
         }
+        // Fill the whole carousel area and make the empty space hit-testable so the drag works
+        // anywhere on the screen, not only directly on a card.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
         // Attaches the physics-based drag tracking to the entire scroll area.
         .gesture(
             DragGesture()

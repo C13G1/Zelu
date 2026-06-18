@@ -15,12 +15,6 @@ struct GroupDetails: View {
     var group: FriendGroup
     var height = UIScreen.main.bounds.height
     var width = UIScreen.main.bounds.width
-    let clipCircle: Circle = {
-        let circle = Circle()
-        circle.frame(width: UIScreen.main.bounds.width * 1.91, height: UIScreen.main.bounds.height)
-
-        return circle
-    }()
     @State private var scene: FriendsScene = FriendsScene(size: UIScreen.main.bounds.size,
                                                           connections: Set(),
                                                           sceneType: .search

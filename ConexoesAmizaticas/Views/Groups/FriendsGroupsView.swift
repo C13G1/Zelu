@@ -15,6 +15,7 @@ struct FriendsGroupsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var friendsGroupVM: FriendsGroupsViewModel
     @State private var showCreateGroupSheet = false
+    @State private var showStoreError = false
     @StateObject private var storeManager = StoreKitManager.shared
     
     init() {
@@ -40,20 +41,7 @@ struct FriendsGroupsView: View {
             }
             
             Button(action: {
-                if let produtoParaComprar = storeManager.products.first(where: { $0.id == "Group" }) {
-                    Task {
-                        do {
-                            let compraAprovada = try await storeManager.purchaseConsumable(produtoParaComprar)
-                            if compraAprovada {
-                                showCreateGroupSheet = true
-                            }
-                        } catch {
-                            print("Falha na transação: \(error)")
-                        }
-                    }
-                } else {
-                    print("Produto não carregou.")
-                }
+                Task { await purchaseGroup() }
             }, label: {
                 ZStack {
                     if storeManager.isLoading {
@@ -81,10 +69,38 @@ struct FriendsGroupsView: View {
             friendsGroupVM.setModelContext(modelContext: modelContext)
             friendsGroupVM.fetchData()
         }
-        .onChange(of: storeManager.isPremium) { _, novoStatus in
-            if novoStatus {
+        .onReceive(NotificationCenter.default.publisher(for: .GroupUpdated)) { _ in
+            friendsGroupVM.fetchData()
+        }
+        .task {
+            if storeManager.products.isEmpty {
+                await storeManager.loadProducts()
+            }
+        }
+        .alert("Não foi possível concluir a compra", isPresented: $showStoreError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Verifique sua conexão e tente novamente.")
+        }
+    }
+
+    /// Buys the consumable that unlocks creating a group, then opens the creation sheet on success.
+    /// Reloads the products first if the store hasn't finished loading, and surfaces an alert instead
+    /// of silently doing nothing when the product is unavailable (offline or not yet approved).
+    private func purchaseGroup() async {
+        if storeManager.products.isEmpty {
+            await storeManager.loadProducts()
+        }
+        guard let product = storeManager.products.first(where: { $0.id == "Group" }) else {
+            showStoreError = true
+            return
+        }
+        do {
+            if try await storeManager.purchaseConsumable(product) {
                 showCreateGroupSheet = true
             }
+        } catch {
+            showStoreError = true
         }
     }
 }

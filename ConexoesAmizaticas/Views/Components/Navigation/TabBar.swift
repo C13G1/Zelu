@@ -86,7 +86,7 @@ struct TabBar: View {
             case .groupDetails(let group):
                 GroupDetails(navigation: $navigation, group: group)
             case .editGroup(let group):
-                EditGroupView(group: group)
+                EditGroupView(group: group, navigation: $navigation)
             }
         }
         .offset(y: isHidden ? UIScreen.main.bounds.height * 0.19 : -UIScreen.main.bounds.height * 0.25)

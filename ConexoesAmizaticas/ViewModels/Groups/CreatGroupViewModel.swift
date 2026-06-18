@@ -51,9 +51,11 @@ class CreatGroupViewModel{
     /// - Parameter modelContext: The SwiftData context that will receive the new profile.
     func createGroup(modelContext: ModelContext) {
         let finalName = name == "" ? "Grupo" : name
-        let finalImageData = profileImageData
-                             ?? UIImage(named: "defaultPicture")?.jpegData(compressionQuality: 0.99)
-                             ?? Data()
+        // Square-crop the cover so it never stretches in the circular group containers.
+        let sourceImage = profileImageData.flatMap { UIImage(data: $0) }
+                          ?? UIImage(named: "defaultPicture")
+        let finalImageData = sourceImage?.squareThumbnail(side: 512)
+                                         .jpegData(compressionQuality: 0.9) ?? Data()
         let group = FriendGroup(
             name: finalName,
             image: finalImageData,
@@ -63,6 +65,7 @@ class CreatGroupViewModel{
             modelContext.insert(group)
             try modelContext.save()
             Aptabase.shared.trackEvent("group_created")
+            NotificationCenter.default.post(name: .GroupUpdated, object: nil)
         }
         catch{
             print("erro ao criar grupo")
