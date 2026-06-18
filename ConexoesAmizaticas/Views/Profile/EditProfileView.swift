@@ -30,28 +30,9 @@ struct EditProfileView: View {
                 @Bindable var bindable = viewModel
 
                 VStack(spacing: 40) {
-                    ZStack {
-                        if let uiImage = UIImage(data: viewModel.profileImageData) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: width * 0.75, height: width * 0.75)
-                                .clipShape(Circle())
-                        }
-
-                        PhotosPicker(selection: $bindable.selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                            Image(systemName: "pencil")
-                                .foregroundStyle(.lightBackground)
-                                .font(.title)
-                                .padding(8)
-                                .background(Color.green)
-                                .cornerRadius(100)
-                        }
-                        .padding(.leading, width * 0.45)
-                        .padding(.top, height * 0.28)
-                    }
-                    .onChange(of: viewModel.selectedPhoto) { _, _ in
-                        Task { await viewModel.commitSelectedPhoto() }
+                    EditableAvatar(imageData: viewModel.profileImageData,
+                                   selection: $bindable.selectedPhoto) {
+                        await viewModel.commitSelectedPhoto()
                     }
 
                     VStack(spacing: 2) {
