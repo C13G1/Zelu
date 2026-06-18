@@ -86,6 +86,8 @@ struct InitialView: View {
                             SetMetaView(viewModel: friendVM)
                         case .groupDetails(let group):
                             GroupDetails(navigation: $navigation, group: group)
+                        case .editGroup(let group):
+                            EditGroupView(group: group)
                         }
                     }
                     .navigationDestination(isPresented: $showVacuoView) {

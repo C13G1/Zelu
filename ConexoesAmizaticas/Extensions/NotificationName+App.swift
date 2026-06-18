@@ -16,4 +16,6 @@ extension Notification.Name {
     /// Broadcast when the current user edits a friend's name or avatar so that downstream views
     /// (carousels, profiles) can invalidate any cached representation of the profile.
     static let friendProfileUpdated = Notification.Name("friendProfileUpdated")
+    
+    static let GroupUpdated = Notification.Name("GroupUpdated")
 }

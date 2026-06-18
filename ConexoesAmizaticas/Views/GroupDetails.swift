@@ -61,7 +61,7 @@ struct GroupDetails: View {
                         .cornerRadius(100)
                     }
                     
-                    NavigationLink(value: AppRoute.search) {
+                    NavigationLink(value: AppRoute.editGroup(group)) {
                         ZStack {
                             Circle()
                                 .frame(width: width * 0.15)
