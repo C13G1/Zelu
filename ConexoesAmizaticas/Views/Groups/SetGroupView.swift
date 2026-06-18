@@ -7,8 +7,8 @@
 
 import SwiftUI
 import PhotosUI
+import SwiftData
 
-// TODO: Bullet Plz componentiza e documenta este arquivo <3
 struct SetGroupView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -75,29 +75,7 @@ struct SetGroupView: View {
             
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 24) {
                 ForEach(viewModel.selectedConnections) { connection in
-                    ZStack(alignment: .topTrailing){
-                        VStack {
-                            Image(uiImage: UIImage(data: connection.friend.profilePicture) ?? UIImage(named: "defaultPicture")!)
-                                .resizable()
-                                .frame(width: UIScreen.main.bounds.width * 0.16, height: UIScreen.main.bounds.width * 0.16)
-                                .clipShape(Circle())
-                                .overlay {
-                                    Circle()
-                                        .stroke(Color(uiColor: connection.metaManager.currentRelationshipState.color), lineWidth: 3)
-                                }
-                            Text(connection.friend.name)
-                        }
-                        ZStack{
-                            Circle()
-                                .frame(width: height * 0.0211)
-                                .foregroundStyle(.black)
-                            Image(systemName: "xmark")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.white)
-                                .bold()
-                        }
-                    }
-                    .onTapGesture {
+                    GroupMemberCell(connection: connection) {
                         viewModel.removeConnection(connection)
                     }
                 }
