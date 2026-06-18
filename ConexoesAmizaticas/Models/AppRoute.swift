@@ -15,6 +15,7 @@ enum AppRoute: Hashable {
     case ble
     case setMeta(FriendProfileViewModel)
     case groupDetails(FriendGroup)
+    case editGroup(FriendGroup)
 
     static func == (lhs: AppRoute, rhs: AppRoute) -> Bool {
         switch (lhs, rhs) {
@@ -39,7 +40,9 @@ enum AppRoute: Hashable {
         case .groupDetails(let group):
             hasher.combine(3)
             hasher.combine(group)
-            
+        case .editGroup(let group):
+            hasher.combine(4)
+            hasher.combine(group)
         }
     }
 }
