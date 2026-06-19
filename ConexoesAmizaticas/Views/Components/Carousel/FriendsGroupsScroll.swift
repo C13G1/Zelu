@@ -47,8 +47,10 @@ struct FriendsGroupsScroll: View {
         // anywhere on the screen, not only directly on a card.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
-        // Attaches the physics-based drag tracking to the entire scroll area.
-        .gesture(
+        // Attaches the physics-based drag tracking to the entire scroll area. High priority so a slide
+        // that starts on top of a card wins over that card's tap/NavigationLink instead of feeling stuck
+        // on the front group — a pure tap (no movement) still falls through to open or center a card.
+        .highPriorityGesture(
             DragGesture()
                 .onChanged { value in
                     viewModel.onDragChanged(value: value)
