@@ -69,6 +69,9 @@ class EditProfileViewModel {
         // Snap routing to onboarding now, before the CloudKit delete flushes the `users` query, and keep it
         // there across relaunches until a new profile is created. Cleared in `createProfile`.
         UserDefaults.standard.set(true, forKey: "accountDeleted")
+        // Purchased group slots live in iCloud key-value storage, not SwiftData — clear them too so a
+        // deleted account starts over with just the free group.
+        GroupSlots.reset()
         // Drop the mirror zone server-side so the account can't be restored by reinstalling before the
         // local deletions finish exporting to CloudKit.
         Task { await CloudKitReset.wipePrivateZone() }

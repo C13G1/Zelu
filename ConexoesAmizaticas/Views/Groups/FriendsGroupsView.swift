@@ -76,14 +76,17 @@ struct FriendsGroupsView: View {
         .onAppear() {
             friendsGroupVM.setModelContext(modelContext: modelContext)
             friendsGroupVM.fetchData()
+            GroupSlots.reconcile(existingCount: friendsGroupVM.friendsGroups.count)
         }
         .onReceive(NotificationCenter.default.publisher(for: .GroupUpdated)) { _ in
             friendsGroupVM.fetchData()
+            GroupSlots.reconcile(existingCount: friendsGroupVM.friendsGroups.count)
         }
         // The VM fetches groups manually (not via @Query), so CloudKit imports that arrive after the view
         // appeared won't show up on their own — refresh when CloudKit reports a sync event.
         .onReceive(NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification)) { _ in
             friendsGroupVM.fetchData()
+            GroupSlots.reconcile(existingCount: friendsGroupVM.friendsGroups.count)
         }
         .task {
             if storeManager.products.isEmpty {
@@ -97,10 +100,15 @@ struct FriendsGroupsView: View {
         }
     }
 
-    /// Caption under the create button that states the price up front: first group free, paid after.
+    /// Caption under the create button that states the cost up front: free for the first group or a slot
+    /// freed by deleting one, otherwise the price.
     private var groupButtonCaption: String {
-        if friendsGroupVM.friendsGroups.isEmpty {
+        let count = friendsGroupVM.friendsGroups.count
+        if count == 0 {
             return "Seu primeiro grupo é grátis"
+        }
+        if !GroupSlots.needsPurchase(existingCount: count) {
+            return "Novo grupo • grátis"
         }
         if let price = storeManager.products.first(where: { $0.id == "Group" })?.displayPrice {
             return "Novo grupo • \(price)"
@@ -108,12 +116,15 @@ struct FriendsGroupsView: View {
         return "Novo grupo"
     }
 
-    /// Buys the consumable that unlocks creating a group, then opens the creation sheet on success.
-    /// Reloads the products first if the store hasn't finished loading, and surfaces an alert instead
-    /// of silently doing nothing when the product is unavailable (offline or not yet approved).
+    /// Opens the creation sheet directly when the user still owns a free or previously-bought slot,
+    /// otherwise buys one slot first. Reloads the products if the store hasn't finished loading, and
+    /// surfaces an alert instead of silently doing nothing when the product is unavailable.
     private func purchaseGroup() async {
-        // The first group is free; only charge once the user already has at least one group.
-        if friendsGroupVM.friendsGroups.isEmpty {
+        let count = friendsGroupVM.friendsGroups.count
+        // Groups that already exist were already paid for — never charge for them again.
+        GroupSlots.reconcile(existingCount: count)
+        // Covered by the free group or a slot freed by deleting an earlier group: no charge.
+        if !GroupSlots.needsPurchase(existingCount: count) {
             showCreateGroupSheet = true
             return
         }
@@ -126,6 +137,7 @@ struct FriendsGroupsView: View {
         }
         do {
             if try await storeManager.purchaseConsumable(product) {
+                GroupSlots.addPurchasedSlot()
                 showCreateGroupSheet = true
             }
         } catch {
