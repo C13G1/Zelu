@@ -135,9 +135,13 @@ class FriendsGroupsViewModel {
     }
     
     // MARK: - Gesture Tracking
-    
+
+    /// Finger travel needed to move one group. A quarter of the screen width keeps the slide light and
+    /// easy on every device — the old fixed 150 pt felt heavy and only got worse on wider screens.
+    private static var dragPointsPerGroup: Double { UIScreen.main.bounds.width * 0.25 }
+
     func onDragChanged(value: DragGesture.Value) {
-        draggingItem = snappedItem + value.translation.width / 150
+        draggingItem = snappedItem + value.translation.width / Self.dragPointsPerGroup
     }
 
     func onDragEnded(value: DragGesture.Value) {
