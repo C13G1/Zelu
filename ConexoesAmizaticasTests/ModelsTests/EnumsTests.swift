@@ -102,11 +102,13 @@ struct MetaEnumTests {
         #expect(decoded == original)
     }
 
-    @Test("rawValue de quinzenal mantém o typo legado 'quizenal'")
-    func quinzenalRawValueIsLegacy() {
-        // Comentário: existe um typo proposital no model ("quizenal" sem 'n'),
-        // este teste serve para detectar caso seja corrigido (quebraria persistência existente).
-        #expect(Meta.quinzenal.rawValue == "quizenal")
+    @Test("quinzenal usa o rawValue corrigido e ainda decodifica o typo legado")
+    func quinzenalRawValueAndLegacyDecode() throws {
+        // O typo "quizenal" foi corrigido para "quinzenal"; o decoder mantém compatibilidade lendo o
+        // valor legado persistido por versões antigas, então dados já sincronizados não quebram.
+        #expect(Meta.quinzenal.rawValue == "quinzenal")
+        let legacy = try JSONDecoder().decode(Meta.self, from: Data("\"quizenal\"".utf8))
+        #expect(legacy == .quinzenal)
     }
 }
 
