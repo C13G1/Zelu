@@ -73,22 +73,11 @@ struct TabBar: View {
             
             FriendsGroupsView()
                 .frame(width: width)
-            
+
         }
-        .navigationDestination(for: AppRoute.self) { route in
-            switch route {
-            case .search(let filterConnections):
-                SearchView(viewModel: $viewModel, navigation: $navigation, connectionsFilter: filterConnections)
-            case .ble:
-                BLEView(profile: viewModel.profile)
-            case .setMeta(let friendVM):
-                SetMetaView(viewModel: friendVM)
-            case .groupDetails(let group):
-                GroupDetails(navigation: $navigation, group: group)
-            case .editGroup(let group):
-                EditGroupView(group: group, navigation: $navigation)
-            }
-        }
+        // AppRoute destinations are resolved once, at the InitialView NavigationStack root. Declaring them
+        // again here put two destinations for the same type on one stack ("declared earlier on the stack…"),
+        // which broke group navigation. Keep this view free of navigationDestination.
         .offset(y: isHidden ? UIScreen.main.bounds.height * 0.19 : -UIScreen.main.bounds.height * 0.25)
         .animation(.spring(), value: isHidden)
         .gesture(SwipeUpGesture)

@@ -24,6 +24,8 @@ enum AppRoute: Hashable {
         case (.setMeta(let a), .setMeta(let b)):
             // Compara pelo ID da connection para não depender do ViewModel ser Equatable
             return a.connection.id == b.connection.id
+        case (.groupDetails(let a), .groupDetails(let b)): return a == b
+        case (.editGroup(let a), .editGroup(let b)): return a == b
         default: return false
         }
     }
