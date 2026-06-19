@@ -309,7 +309,7 @@ final class NearbyManager: NSObject {
     /// Our profile photo, squared down to a small JPEG so it transfers quickly.
     private func compressedPhoto() -> Data {
         if let image = UIImage(data: profile.profilePicture),
-           let thumb = image.preparingThumbnail(of: CGSize(width: 256, height: 256))?
+           let thumb = image.squareThumbnail(side: 256)
                .jpegData(compressionQuality: 0.7) {
             return thumb
         }
