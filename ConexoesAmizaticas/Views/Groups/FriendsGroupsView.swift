@@ -17,6 +17,7 @@ struct FriendsGroupsView: View {
     @State private var friendsGroupVM: FriendsGroupsViewModel
     @State private var showCreateGroupSheet = false
     @State private var showStoreError = false
+    @State private var showGroupInfo = false
     @StateObject private var storeManager = StoreKitManager.shared
     
     init() {
@@ -60,10 +61,26 @@ struct FriendsGroupsView: View {
                 })
                 .disabled(storeManager.isLoading)
 
-                // Make the free-then-paid model explicit instead of leaving the bare "+" ambiguous.
-                Text(groupButtonCaption)
-                    .font(.custom("Sora-Regular", size: 14))
-                    .foregroundStyle(.gray)
+                // Make the free-then-paid model explicit instead of leaving the bare "+" ambiguous,
+                // with an info button that explains the credit rule.
+                HStack(spacing: 6) {
+                    Text(groupButtonCaption)
+                        .font(.custom("Sora-Regular", size: 14))
+                        .foregroundStyle(.gray)
+                    Button {
+                        showGroupInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.gray)
+                    }
+                }
+
+                // Inventory line: how many groups can still be created without paying (free group + credits).
+                if freeSlotsCaption != nil {
+                    Text(freeSlotsCaption!)
+                        .font(.custom("Sora-Regular", size: 12))
+                        .foregroundStyle(.gray)
+                }
             }
         }
         .sheet(isPresented: $showCreateGroupSheet){
@@ -98,6 +115,24 @@ struct FriendsGroupsView: View {
         } message: {
             Text("Verifique sua conexão e tente novamente.")
         }
+        .alert("Como funcionam os grupos", isPresented: $showGroupInfo) {
+            Button("Entendi", role: .cancel) {}
+        } message: {
+            Text("Seu primeiro grupo é grátis. Cada grupo a mais é comprado uma vez. Se você apagar um grupo que pagou, o crédito fica guardado: dá para criar outro no lugar sem pagar de novo. Os créditos seguem a sua conta pelo iCloud.")
+        }
+    }
+
+    /// Inventory line under the button: how many groups can still be created without paying. Returns nil
+    /// when there is nothing to highlight, so it reads as "you have credits" instead of duplicating the
+    /// "primeiro grupo é grátis" caption for a brand-new user.
+    private var freeSlotsCaption: String? {
+        let count = friendsGroupVM.friendsGroups.count
+        guard count > 0 else { return nil }
+        let remaining = GroupSlots.freeRemaining(existingCount: count)
+        guard remaining > 0 else { return nil }
+        return remaining == 1
+            ? "Você pode criar 1 grupo sem pagar"
+            : "Você pode criar \(remaining) grupos sem pagar"
     }
 
     /// Caption under the create button that states the cost up front: free for the first group or a slot

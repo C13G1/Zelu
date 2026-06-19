@@ -53,4 +53,16 @@ struct GroupSlotsTests {
     func reconcileFloorsAtZero() {
         #expect(GroupSlots.reconciled(purchased: 0, existingCount: 0) == 0)
     }
+
+    @Test("freeRemaining conta o grupo grátis e os créditos não usados")
+    func freeRemainingCounts() {
+        // Usuário novo: 1 grupo grátis disponível.
+        #expect(GroupSlots.freeRemaining(existingCount: 0, purchased: 0) == 1)
+        // Já criou o grátis: nada sem custo.
+        #expect(GroupSlots.freeRemaining(existingCount: 1, purchased: 0) == 0)
+        // Comprou 1 e apagou o pago: 1 crédito sobra.
+        #expect(GroupSlots.freeRemaining(existingCount: 1, purchased: 1) == 1)
+        // Nunca fica negativo.
+        #expect(GroupSlots.freeRemaining(existingCount: 5, purchased: 1) == 0)
+    }
 }

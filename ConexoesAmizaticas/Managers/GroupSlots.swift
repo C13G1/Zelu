@@ -31,6 +31,12 @@ enum GroupSlots {
         existingCount >= allowance(purchased: purchased)
     }
 
+    /// How many more groups can be created without paying: the free group plus any owned-but-unused slots
+    /// (e.g. a slot freed by deleting a group).
+    static func freeRemaining(existingCount: Int, purchased: Int) -> Int {
+        max(0, allowance(purchased: purchased) - existingCount)
+    }
+
     /// Self-healed slot count: every group past the free one was paid for, so the stored count can only
     /// rise to match the groups that already exist — never charging twice for groups synced from another
     /// device or restored from CloudKit after a reinstall. Deleting groups never lowers it (the `max`),
@@ -46,6 +52,11 @@ enum GroupSlots {
     /// Whether the next group must be bought, given the slots currently owned.
     static func needsPurchase(existingCount: Int) -> Bool {
         needsPurchase(existingCount: existingCount, purchased: purchased)
+    }
+
+    /// How many more groups can be created without paying, given the slots currently owned.
+    static func freeRemaining(existingCount: Int) -> Int {
+        freeRemaining(existingCount: existingCount, purchased: purchased)
     }
 
     /// Banks one paid slot after a successful purchase.
