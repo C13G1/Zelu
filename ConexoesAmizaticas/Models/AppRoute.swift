@@ -11,7 +11,9 @@ import Foundation
 /// Todos os NavigationLink usam `NavigationLink(value:)` com esse enum —
 /// o NavigationStack do InitialView é o único responsável por resolver os destinos.
 enum AppRoute: Hashable {
-    case search([Connection])
+    // Optional so general search (nil = all contacts) is distinct from a group's search (its members,
+    // possibly empty). An empty array means "this group has no members", not "search everyone".
+    case search([Connection]?)
     case ble
     case setMeta(FriendProfileViewModel)
     case groupDetails(FriendGroup)
@@ -19,7 +21,7 @@ enum AppRoute: Hashable {
 
     static func == (lhs: AppRoute, rhs: AppRoute) -> Bool {
         switch (lhs, rhs) {
-        case (.search, .search): return true
+        case (.search(let a), .search(let b)): return a == b
         case (.ble, .ble): return true
         case (.setMeta(let a), .setMeta(let b)):
             // Compara pelo ID da connection para não depender do ViewModel ser Equatable

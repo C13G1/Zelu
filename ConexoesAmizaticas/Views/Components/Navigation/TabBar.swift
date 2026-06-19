@@ -29,7 +29,7 @@ struct TabBar: View {
                     .overlay() {
                         ZStack {
                             HStack {
-                                NavigationLink(value: AppRoute.search([])) {
+                                NavigationLink(value: AppRoute.search(nil)) {
                                     ZStack {
                                         Circle()
                                             .frame(width: width * 0.15)
