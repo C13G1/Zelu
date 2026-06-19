@@ -59,16 +59,13 @@ struct EditProfileView: View {
 
                     Spacer()
 
-                    Button(role: .destructive) {
+                    Button {
                         showDeleteConfirmation = true
                     } label: {
-                        Text("Apagar perfil")
-                            .font(.custom("Bolota", size: 20))
-                            .frame(maxWidth: .infinity)
+                        Text("apagar perfil")
+                            .font(.custom("Sora-Light", size: 15))
+                            .foregroundStyle(.red)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                    .padding(.horizontal)
                     .padding(.bottom, 40)
                 }
                 .foregroundStyle(.black)
