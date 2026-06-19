@@ -28,9 +28,9 @@ struct SearchView: View {
         return scene
     }()
     
-    private var connectionsFilter: [Connection]
+    private var connectionsFilter: [Connection]?
 
-    init(viewModel: Binding<InitialViewModel>, navigation: Binding<NavigationPath>, connectionsFilter: [Connection] = []){
+    init(viewModel: Binding<InitialViewModel>, navigation: Binding<NavigationPath>, connectionsFilter: [Connection]? = nil){
         _viewModel = viewModel
         _navigation = navigation
         self.connectionsFilter = connectionsFilter
@@ -57,9 +57,9 @@ struct SearchView: View {
             placement: .navigationBarDrawer(displayMode: .always)
         )
         .onAppear {
-            let active = connectionsFilter.isEmpty ? connections : connectionsFilter
-            searchViewModel.connections = active
-            scene.updateConnections(receivedConnections: Set(active))
+            let active = connectionsFilter == nil ? connections : connectionsFilter
+            searchViewModel.connections = active!
+            scene.updateConnections(receivedConnections: Set(active!))
             scene.updateNodeVisuals()
             scene.onFriendTapped = { connection in
                 DispatchQueue.main.async {
@@ -68,7 +68,7 @@ struct SearchView: View {
             }
         }
         .onChange(of: connections, initial: true) { _, newConnections in
-            guard connectionsFilter.isEmpty else { return }  
+            guard connectionsFilter == nil else { return }
             searchViewModel.connections = newConnections
             scene.updateConnections(receivedConnections: Set(newConnections))
             scene.updateNodeVisuals()
