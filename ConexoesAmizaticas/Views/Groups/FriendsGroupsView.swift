@@ -71,15 +71,9 @@ struct FriendsGroupsView: View {
                         showGroupInfo = true
                     } label: {
                         Image(systemName: "info.circle")
+                            .font(.system(size: 14))
                             .foregroundStyle(.gray)
                     }
-                }
-
-                // Inventory line: how many groups can still be created without paying (free group + credits).
-                if freeSlotsCaption != nil {
-                    Text(freeSlotsCaption!)
-                        .font(.custom("Sora-Regular", size: 12))
-                        .foregroundStyle(.gray)
                 }
             }
         }
@@ -122,28 +116,19 @@ struct FriendsGroupsView: View {
         }
     }
 
-    /// Inventory line under the button: how many groups can still be created without paying. Returns nil
-    /// when there is nothing to highlight, so it reads as "you have credits" instead of duplicating the
-    /// "primeiro grupo é grátis" caption for a brand-new user.
-    private var freeSlotsCaption: String? {
-        let count = friendsGroupVM.friendsGroups.count
-        guard count > 0 else { return nil }
-        let remaining = GroupSlots.freeRemaining(existingCount: count)
-        guard remaining > 0 else { return nil }
-        return remaining == 1
-            ? "Você pode criar 1 grupo sem pagar"
-            : "Você pode criar \(remaining) grupos sem pagar"
-    }
-
-    /// Caption under the create button that states the cost up front: free for the first group or a slot
-    /// freed by deleting one, otherwise the price.
+    /// Single caption under the create button — kept to one line so it never shifts the carousel above it.
+    /// States the cost up front, or how many groups can still be created without paying (free group plus
+    /// any credits from deleted paid groups).
     private var groupButtonCaption: String {
         let count = friendsGroupVM.friendsGroups.count
         if count == 0 {
             return "Seu primeiro grupo é grátis"
         }
-        if !GroupSlots.needsPurchase(existingCount: count) {
-            return "Novo grupo • grátis"
+        let remaining = GroupSlots.freeRemaining(existingCount: count)
+        if remaining > 0 {
+            return remaining == 1
+                ? "Você pode criar 1 grupo sem pagar"
+                : "Você pode criar \(remaining) grupos sem pagar"
         }
         if let price = storeManager.products.first(where: { $0.id == "Group" })?.displayPrice {
             return "Novo grupo • \(price)"
