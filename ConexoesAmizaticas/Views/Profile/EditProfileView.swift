@@ -16,10 +16,12 @@ import SwiftData
 struct EditProfileView: View {
     @AppStorage("isNotificationAllowed") var isNotificationAllowed: Bool = false
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Binding var vm: InitialViewModel
 
     @State private var viewModel: EditProfileViewModel?
     @FocusState private var isNameFocused: Bool
+    @State private var showDeleteConfirmation = false
 
     var width = UIScreen.main.bounds.width
     var height = UIScreen.main.bounds.height
@@ -56,6 +58,18 @@ struct EditProfileView: View {
                     }
 
                     Spacer()
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Text("Apagar perfil")
+                            .font(.custom("Bolota", size: 20))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .padding(.horizontal)
+                    .padding(.bottom, 40)
                 }
                 .foregroundStyle(.black)
                 .onTapGesture { isNameFocused = false }
@@ -75,8 +89,17 @@ struct EditProfileView: View {
             }
             else {
                 NotificationManager.cancelAllNotifications()
-                ProximityNotifier.shared.cancel() 
+                ProximityNotifier.shared.cancel()
             }
+        }
+        .alert("Apagar perfil?", isPresented: $showDeleteConfirmation) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Apagar", role: .destructive) {
+                viewModel?.deleteAccount()
+                dismiss()
+            }
+        } message: {
+            Text("Isso apaga seu perfil e todos os seus dados (amigos, grupos, fotos) deste aparelho e do iCloud, em todos os seus dispositivos. Não dá para desfazer.")
         }
     }
 }

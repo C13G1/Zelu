@@ -53,4 +53,18 @@ class EditProfileViewModel {
         profile.editProfileImageData(data)
         try? modelContext.save()
     }
+
+    /// Permanently erases the account: the owner profile and every related record (friends, connections,
+    /// groups, posts), locally and — through CloudKit mirroring — on iCloud and the user's other devices.
+    /// Clearing `ownUserID` sends the app back to onboarding. Irreversible.
+    func deleteAccount() {
+        try? modelContext.delete(model: Post.self)
+        try? modelContext.delete(model: FeedManager.self)
+        try? modelContext.delete(model: MetaManager.self)
+        try? modelContext.delete(model: Connection.self)
+        try? modelContext.delete(model: FriendGroup.self)
+        try? modelContext.delete(model: User.self)
+        try? modelContext.save()
+        UserDefaults.standard.removeObject(forKey: "ownUserID")
+    }
 }
