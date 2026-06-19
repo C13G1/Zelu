@@ -34,7 +34,7 @@ class UserProfileViewModel {
             .afastados, .proximos, .distantes, .estaveis, .inseparaveis
         ]
         let grouped = Dictionary(grouping: connections) {
-            $0.metaManager.currentRelationshipState
+            $0.metaManager?.currentRelationshipState ?? .afastados
         }
         return orderedStates.compactMap { state in
             let count = grouped[state]?.count ?? 0

@@ -41,7 +41,7 @@ class InitialViewModel {
         var friends: [User] = []
         
         for connection in connectionsWithFriends {
-            friends.append(connection.friend)
+            if let friend = connection.friend { friends.append(friend) }
         }
         return friends
     }
@@ -57,7 +57,7 @@ class InitialViewModel {
     /// Retrieves a specific persistent connection based on the friend's unique user identifier.
     func getConnectionByFriend(friend: User) -> Connection? {
         for c in connectionsWithFriends {
-            if c.friend.id == friend.id {
+            if c.friend?.id == friend.id {
                 return c
             }
         }
@@ -71,7 +71,7 @@ class InitialViewModel {
     /// - Parameter connections: The connections to evaluate, typically the SwiftData query result.
     func bootstrap(connections: [Connection]) {
         for connection in connections {
-            connection.metaManager.applyDecayIfNeeded(lastMet: connection.lastMet)
+            connection.metaManager?.applyDecayIfNeeded(lastMet: connection.lastMet)
         }
         try? modelContext?.save()
         NotificationManager.rescheduleAll(connections: connections)

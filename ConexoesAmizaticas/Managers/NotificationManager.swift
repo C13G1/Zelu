@@ -27,7 +27,7 @@ struct NotificationManager {
         let id = "meta_\(connection.id.uuidString)"
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
 
-        let meta = connection.metaManager.meta
+        guard let meta = connection.metaManager?.meta else { return }
         guard meta != .nenhuma, meta.days > 0 else { return }
 
         let reference = connection.lastMet ?? connection.firstConnection
@@ -40,7 +40,7 @@ struct NotificationManager {
 
         let content = UNMutableNotificationContent()
         content.title = "Tá na hora de marcar um encontro!"
-        content.body = "Você prometeu se encontrar com \(connection.friend.name) \(meta.displayText). O prazo está chegando!"
+        content.body = "Você prometeu se encontrar com \(connection.friend?.name ?? "") \(meta.displayText). O prazo está chegando!"
         content.sound = .default
 
         let trigger: UNNotificationTrigger?

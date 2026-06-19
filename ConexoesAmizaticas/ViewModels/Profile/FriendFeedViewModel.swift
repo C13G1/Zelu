@@ -37,7 +37,7 @@ class FriendFeedViewModel {
     
     /// Syncs the local memory array with the database, ensuring newest posts appear first.
     func refreshPosts() {
-        self.posts = connection.feedManager.posts.sorted(by: { $0.date > $1.date })
+        self.posts = (connection.feedManager?.posts ?? []).sorted(by: { $0.date > $1.date })
     }
     
     /// Converts async PhotosPicker selections into database `Post` entities.
@@ -46,7 +46,7 @@ class FriendFeedViewModel {
             for item in selectedItems {
                 if let data = try? await item.loadTransferable(type: Data.self) {
                     let newPost = Post(images: [data])
-                    connection.feedManager.addPost(newPost)
+                    connection.feedManager?.addPost(newPost)
                     modelContext.insert(newPost)
                 }
             }
@@ -58,7 +58,7 @@ class FriendFeedViewModel {
     
     /// Purges a specific memory from both the active array and the SwiftData store.
     func deletePost(id: UUID, modelContext: ModelContext) {
-        connection.feedManager.deletePost(id: id)
+        connection.feedManager?.deletePost(id: id)
         posts.removeAll(where: { $0.id == id })
         try? modelContext.save()
         refreshPosts()

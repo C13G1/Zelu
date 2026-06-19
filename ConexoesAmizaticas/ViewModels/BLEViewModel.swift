@@ -242,7 +242,7 @@ class BLEViewModel {
     /// Returns the saved connection that matches the discovered peer, if any.
     func existingConnection(in connections: [Connection]) -> Connection? {
         guard let friend = friend else { return nil }
-        return connections.first { $0.friend.id == friend.id }
+        return connections.first { $0.friend?.id == friend.id }
     }
 
     /// Indicates whether the discovered peer is already saved as a friend.
@@ -260,20 +260,20 @@ class BLEViewModel {
             return
         }
         let connection: Connection
-        if let existing = existingConnections.first(where: { $0.friend.id == friend.id }) {
+        if let existing = existingConnections.first(where: { $0.friend?.id == friend.id }) {
             // Only score and stamp the meeting once the 24h cooldown has elapsed, so repeated
             // encounters on the same day still confirm visually but cannot level the friendship up.
             if existing.canRegisterMeeting {
                 existing.lastMet = Date.now
-                existing.metaManager.addOrSubtractScore(10)
+                existing.metaManager?.addOrSubtractScore(10)
                 Aptabase.shared.trackEvent("meeting_registered", with: [
-                    "relationship_state": existing.metaManager.currentRelationshipState.rawValue,
-                    "score": existing.metaManager.score
+                    "relationship_state": existing.metaManager?.currentRelationshipState.rawValue ?? "",
+                    "score": existing.metaManager?.score ?? 0
                 ])
             } else {
                 Aptabase.shared.trackEvent("meeting_on_cooldown", with: [
-                    "relationship_state": existing.metaManager.currentRelationshipState.rawValue,
-                    "score": existing.metaManager.score
+                    "relationship_state": existing.metaManager?.currentRelationshipState.rawValue ?? "",
+                    "score": existing.metaManager?.score ?? 0
                 ])
             }
             connection = existing

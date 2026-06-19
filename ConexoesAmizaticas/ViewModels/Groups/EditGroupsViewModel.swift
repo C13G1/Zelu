@@ -25,7 +25,7 @@ class EditGroupViewModel {
     }
     
     func removeConnection(_ connection: Connection) {
-        group.connections.removeAll { $0.id == connection.id }
+        group.connections?.removeAll { $0.id == connection.id }
         try? modelContext.save()
     }
     

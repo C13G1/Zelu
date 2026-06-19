@@ -24,19 +24,19 @@ class FriendProfileViewModel {
     
     /// Overwrites the current interaction goal established for this relationship.
     func defineMeta(meta: Meta){
-        connection.metaManager.setMeta(meta)
+        connection.metaManager?.setMeta(meta)
     }
-    
+
     func getMeta() -> Meta {
-        return connection.metaManager.meta
+        return connection.metaManager?.meta ?? .mensal
     }
-    
+
     func getFriendImage() -> UIImage? {
-        return UIImage(data: connection.friend.getProfileImageData())
+        return UIImage(data: connection.friend?.getProfileImageData() ?? Data())
     }
-    
+
     func getFriendName() -> String {
-        return connection.friend.getName()
+        return connection.friend?.getName() ?? ""
     }
     
     /// Calculates the total lifespan of the metaManager in exact days.
@@ -67,13 +67,13 @@ class FriendProfileViewModel {
     
     /// Derives the visual UI theme color based on the current health score of the relationship.
     func getProfileColor() -> Color {
-        return Color(connection.metaManager.currentRelationshipState.color)
+        return Color(connection.metaManager?.currentRelationshipState.color ?? RelationshipState.afastados.color)
     }
     
     /// Computes the remaining time before the user fails their set relationship goal (`Meta`).
     /// - Returns: A positive integer representing remaining days, or a negative integer if the goal is overdue.
     func getTimeUntilMeet() -> Int {
-        connection.metaManager.meta.days - getTimeSinceLastMet()
+        (connection.metaManager?.meta.days ?? 0) - getTimeSinceLastMet()
     }
     
     /// Permanently removes the connection, its score/feed managers and the underlying friend from SwiftData.
@@ -82,9 +82,9 @@ class FriendProfileViewModel {
     /// - Parameter modelContext: The SwiftData context that should commit the cascading delete.
     func deleteConnection(modelContext: ModelContext) {
         NotificationManager.cancelMetaReminder(for: connection)
-        modelContext.delete(connection.metaManager)
-        modelContext.delete(connection.feedManager)
-        modelContext.delete(connection.friend)
+        if let metaManager = connection.metaManager { modelContext.delete(metaManager) }
+        if let feedManager = connection.feedManager { modelContext.delete(feedManager) }
+        if let friend = connection.friend { modelContext.delete(friend) }
         modelContext.delete(connection)
         try? modelContext.save()
     }

@@ -14,9 +14,25 @@ import SwiftUI
 /// profile information to nearby peers over Bluetooth via the `BLEManager`.
 @Model
 class User: Codable {
-    private(set) var name:           String
-    private(set) var profilePicture: Data
-    private(set) var id:             UUID
+    private(set) var name:           String = "DefaultName"
+    private(set) var profilePicture: Data = Data()
+    private(set) var id:             UUID = UUID()
+
+    /// `true` only for this account's own profile. Synced via CloudKit so every device agrees on who the
+    /// owner is, independent of import order. Deliberately NOT in `CodingKeys`: a profile received over BLE
+    /// is always a friend, so it must never arrive flagged as owner.
+    var isOwner: Bool = false
+
+    /// Inverse of `Connection.friend`, required by CloudKit. Not serialized over BLE.
+    var connection: Connection?
+
+    /// The account owner: the single profile flagged `isOwner`. If more than one exists (e.g. onboarded on
+    /// two devices before they synced), the lowest id wins so every device resolves the same owner.
+    static func owner(in users: [User]) -> User? {
+        let owners = users.filter(\.isOwner)
+        if owners.count <= 1 { return owners.first }
+        return owners.min { $0.id.uuidString < $1.id.uuidString }
+    }
 
     init(
         name: String = "DefaultName",

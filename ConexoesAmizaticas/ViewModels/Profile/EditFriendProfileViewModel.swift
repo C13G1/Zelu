@@ -29,8 +29,8 @@ class EditFriendProfileViewModel {
 
     init(connection: Connection, modelContext: ModelContext) {
         self.connection = connection
-        self.name = connection.friend.name
-        self.profileImageData = connection.friend.profilePicture
+        self.name = connection.friend?.name ?? ""
+        self.profileImageData = connection.friend?.profilePicture
         self.modelContext = modelContext
     }
 
@@ -40,7 +40,7 @@ class EditFriendProfileViewModel {
             name = String(name.prefix(characterLimit))
             return
         }
-        connection.friend.editName(name)
+        connection.friend?.editName(name)
         try? modelContext.save()
         NotificationCenter.default.post(name: .friendProfileUpdated, object: nil)
     }
@@ -49,7 +49,7 @@ class EditFriendProfileViewModel {
     func commitSelectedPhoto() async {
         guard let item = selectedPhoto,
               let data = try? await item.loadTransferable(type: Data.self) else { return }
-        connection.friend.editProfileImageData(data)
+        connection.friend?.editProfileImageData(data)
         try? modelContext.save()
         NotificationCenter.default.post(name: .friendProfileUpdated, object: nil)
     }

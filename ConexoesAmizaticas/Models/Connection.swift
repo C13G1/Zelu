@@ -15,14 +15,18 @@ import Foundation
 @Model
 class Connection: Hashable {
     private(set) var id: UUID = UUID()
-    
+
+    // CloudKit requires every relationship to be optional AND to have an inverse. The inverse
+    // properties live on User/MetaManager/FeedManager. These are always set in `init`.
     /// The profile of the friend associated with this connection.
-    private(set) var friend: User
-    
-    var metaManager: MetaManager
-    var feedManager: FeedManager
-    
-    var firstConnection: Date
+    @Relationship(inverse: \User.connection) private(set) var friend: User?
+    @Relationship(inverse: \MetaManager.connection) var metaManager: MetaManager?
+    @Relationship(inverse: \FeedManager.connection) var feedManager: FeedManager?
+
+    /// Inverse of `FriendGroup.connections` (many-to-many). Unused directly, required by CloudKit.
+    var friendGroups: [FriendGroup]?
+
+    var firstConnection: Date = Date.now
     var lastMet: Date?
     
     /// The total duration since the connection was initially established.
@@ -57,6 +61,7 @@ class Connection: Hashable {
     /// A boolean indicating if the connection has decayed into the vacuum state.
     /// Returns `true` when the score reaches zero — caused by consecutive missed meeting periods.
     var inVacuo: Bool {
+        guard let metaManager else { return false }
         return metaManager.score <= 0
     }
 

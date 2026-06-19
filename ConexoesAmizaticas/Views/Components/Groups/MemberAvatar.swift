@@ -16,15 +16,15 @@ struct MemberAvatar: View {
 
     var body: some View {
         VStack {
-            Image(uiImage: UIImage(data: connection.friend.profilePicture) ?? UIImage(named: "defaultPicture")!)
+            Image(uiImage: UIImage(data: connection.friend?.profilePicture ?? Data()) ?? UIImage(named: "defaultPicture")!)
                 .resizable()
                 .frame(width: side, height: side)
                 .clipShape(Circle())
                 .overlay {
                     Circle()
-                        .stroke(Color(uiColor: connection.metaManager.currentRelationshipState.color), lineWidth: 3)
+                        .stroke(Color(uiColor: connection.metaManager?.currentRelationshipState.color ?? RelationshipState.afastados.color), lineWidth: 3)
                 }
-            Text(connection.friend.name)
+            Text(connection.friend?.name ?? "")
                 .font(.custom("Sora-SemiBold", size: 14))
         }
     }

@@ -292,7 +292,7 @@ struct BLEView: View {
                 .foregroundColor(Color(red: 1, green: 1, blue: 0.96))
                 .frame(width: 306, alignment: .top)
 
-            Text(matchedConnection?.metaManager.meta.reuniteText ?? "")
+            Text(matchedConnection?.metaManager?.meta.reuniteText ?? "")
                 .font(Font.custom("Sora", size: 20))
                 .kerning(0.38)
                 .multilineTextAlignment(.center)
@@ -360,9 +360,9 @@ struct BLEView: View {
                 viewModel.simulateMatch(with: fake)
             }
 
-            if let first = existingConnections.first {
-                Button("Simular encontro com \(first.friend.name) (teste)") {
-                    viewModel.simulateMatch(with: first.friend)
+            if let first = existingConnections.first, let firstFriend = first.friend {
+                Button("Simular encontro com \(firstFriend.name) (teste)") {
+                    viewModel.simulateMatch(with: firstFriend)
                 }
             }
         }

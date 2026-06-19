@@ -19,7 +19,10 @@ class Post: Identifiable {
     var date: Date = Date.now
     
     var id: UUID = UUID()
-    
+
+    /// Inverse of `FeedManager.posts`, required by CloudKit.
+    var feedManager: FeedManager?
+
     init(images: [Data], date: Date = Date.now) {
         self.images = images
         self.date = date

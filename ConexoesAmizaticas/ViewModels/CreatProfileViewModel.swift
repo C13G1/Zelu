@@ -54,7 +54,10 @@ class CreatProfileViewModel {
             name: name.trimmingCharacters(in: .whitespaces),
             profilePicture: finalImageData
         )
+        user.isOwner = true
         modelContext.insert(user)
+        // Local fast-path marker (AppStorage); `isOwner` is the synced source of truth across devices.
+        UserDefaults.standard.set(user.id.uuidString, forKey: "ownUserID")
         Aptabase.shared.trackEvent("onboarding_completed")
     }
 }

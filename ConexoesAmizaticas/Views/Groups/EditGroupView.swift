@@ -23,7 +23,7 @@ struct EditGroupView: View {
 
     init(group: FriendGroup, navigation: Binding<NavigationPath>) {
         _navigation = navigation
-        _selectedConecctions = State(initialValue: group.connections)
+        _selectedConecctions = State(initialValue: group.connections ?? [])
 
         _viewModel = State(initialValue:EditGroupViewModel(group: group,modelContext: modelContext))
     }
@@ -100,7 +100,7 @@ struct EditGroupView: View {
                         .frame(width: width * 0.773, height: 1)
 
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: width * 0.04) {
-                        ForEach(viewModel.group.connections) { connection in
+                        ForEach(viewModel.group.connections ?? []) { connection in
                             GroupMemberCell(connection: connection) {
                                 viewModel.removeConnection(connection)
                             }

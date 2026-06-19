@@ -42,7 +42,7 @@ struct GroupDetails: View {
                 Spacer()
                 
                 HStack (spacing: width * 0.52){
-                    NavigationLink(value: AppRoute.search(group.connections)) {
+                    NavigationLink(value: AppRoute.search(group.connections ?? [])) {
                         ZStack {
                             Circle()
                                 .frame(width: width * 0.15)
@@ -77,7 +77,7 @@ struct GroupDetails: View {
             .padding(.vertical, 50)
         }
         .onAppear {
-            scene.updateConnections(receivedConnections: Set(group.connections))
+            scene.updateConnections(receivedConnections: Set(group.connections ?? []))
             scene.onFriendTapped = { connection in
                 DispatchQueue.main.async {
                     navigation.append(connection)

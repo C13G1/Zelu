@@ -22,15 +22,15 @@ struct ChooseGroupMembersView: View {
         let filtered = searchText.isEmpty
         ? connections
         : connections.filter {
-            $0.friend.getName().localizedStandardContains(searchText)
+            $0.friend?.getName().localizedStandardContains(searchText) ?? false
         }
-        
+
         let sorted = filtered.sorted {
-            $0.friend.getName() < $1.friend.getName()
+            ($0.friend?.getName() ?? "") < ($1.friend?.getName() ?? "")
         }
-        
+
         let dict = Dictionary(grouping: sorted) { connection in
-            String(connection.friend.getName().prefix(1)).uppercased()
+            String((connection.friend?.getName() ?? "").prefix(1)).uppercased()
         }
         
         return dict.sorted { $0.key < $1.key }
@@ -74,7 +74,7 @@ struct ChooseGroupMembersView: View {
                                                 selectedConecctions.remove(at: index)
                                             } else {
                                                 let insertIndex = selectedConecctions.firstIndex(where: {
-                                                    $0.friend.getName() > connection.friend.getName()
+                                                    ($0.friend?.getName() ?? "") > (connection.friend?.getName() ?? "")
                                                 }) ?? selectedConecctions.endIndex
                                                 selectedConecctions.insert(connection, at: insertIndex)
                                             }

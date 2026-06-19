@@ -119,14 +119,14 @@ class FriendsScene: SKScene {
     /// The subset of `connections` that should currently be on stage, respecting the active search filter.
     private var visibleConnections: Set<Connection> {
         guard !currentFilterText.isEmpty else { return connections }
-        return connections.filter { $0.friend.name.localizedCaseInsensitiveContains(currentFilterText) }
+        return connections.filter { $0.friend?.name.localizedCaseInsensitiveContains(currentFilterText) ?? false }
     }
 
     /// Adds nodes for newly visible connections and removes the ones that fell out of view,
     /// so the physics simulation keeps animating only the relevant subset instead of frozen invisible nodes.
     private func syncNodesToVisibleConnections() {
         let target = visibleConnections
-        let targetIDs = Set(target.map { $0.friend.id.uuidString })
+        let targetIDs = Set(target.compactMap { $0.friend?.id.uuidString })
 
         let currentNodes = rootNode.children.compactMap { $0 as? FriendNode }
         let currentIDs = Set(currentNodes.compactMap { $0.name })
@@ -137,7 +137,7 @@ class FriendsScene: SKScene {
         }
         rootNode.removeChildren(in: nodesToRemove)
 
-        for connection in target where !currentIDs.contains(connection.friend.id.uuidString) {
+        for connection in target where !currentIDs.contains(connection.friend?.id.uuidString ?? "") {
             addFriendNode(for: connection)
         }
     }
@@ -146,13 +146,14 @@ class FriendsScene: SKScene {
     func updateNodeVisuals() {
         for child in rootNode.children {
             guard let friendNode = child as? FriendNode else { continue }
-            guard let connection = connections.first(where: { $0.friend.id.uuidString == (friendNode.name ?? "") }) else { continue }
-            let state = connection.metaManager.currentRelationshipState
-            friendNode.score = connection.metaManager.score
+            guard let connection = connections.first(where: { $0.friend?.id.uuidString == (friendNode.name ?? "") }) else { continue }
+            guard let metaManager = connection.metaManager else { continue }
+            let state = metaManager.currentRelationshipState
+            friendNode.score = metaManager.score
             friendNode.setScale(state.nodeSize / 256.0)
             friendNode.sprite.strokeColor = state.color
             friendNode.orbitRadius = state.orbitRadius
-            if let image = UIImage(data: connection.friend.profilePicture) {
+            if let image = UIImage(data: connection.friend?.profilePicture ?? Data()) {
                 friendNode.sprite.fillTexture = SKTexture(image: image.squareThumbnail(side: 256))
             }
         }

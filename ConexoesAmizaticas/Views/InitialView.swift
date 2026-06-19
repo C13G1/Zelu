@@ -8,6 +8,7 @@
 
 import SwiftUI
 import UIKit
+import CoreData
 import _SpriteKit_SwiftUI
 import _SwiftData_SwiftUI
 
@@ -28,8 +29,9 @@ struct InitialView: View {
     
     @Query private var connections: [Connection]
     @Query private var users: [User]
-    
-    var currentUser: User { users.first ?? User() }
+
+    @AppStorage("ownUserID") private var ownUserID = ""
+
     var width = UIScreen.main.bounds.width
     var height = UIScreen.main.bounds.height
     
@@ -39,6 +41,48 @@ struct InitialView: View {
         return s
     }()
     
+    /// Resolves which `User` is the account owner and points `vm.profile` at it.
+    ///
+    /// Order of trust: (1) the synced `isOwner` flag — authoritative and import-order independent;
+    /// (2) recovery for stores created before the flag existed, promoting the profile that is no one's
+    /// friend. Recovery only acts when the choice is unambiguous, so a friend whose `Connection` has not
+    /// finished importing is never mistaken for the owner. Runs again on every users/connections change.
+    private func syncOwner() {
+        if let owner = User.owner(in: users) {
+            // Converge duplicate owners (onboarded on several devices before syncing) to one stable profile.
+            let extras = users.filter { $0.isOwner && $0.id != owner.id }
+            if !extras.isEmpty {
+                extras.forEach { $0.isOwner = false }
+                try? modelContext.save()
+            }
+            adoptOwner(owner)
+            return
+        }
+
+        let nonFriends = users.filter { $0.connection == nil }
+        if let saved = nonFriends.first(where: { $0.id.uuidString == ownUserID }) {
+            promoteToOwner(saved)
+        } else if nonFriends.count == 1 {
+            promoteToOwner(nonFriends[0])
+        } else if let stable = nonFriends.min(by: { $0.id.uuidString < $1.id.uuidString }) {
+            // Ambiguous (legacy duplicates or mid-sync): show a stable choice so the profile always loads,
+            // but don't lock in the flag until the data settles to a single non-friend.
+            vm.profile = stable
+        }
+    }
+
+    /// Backfills the synced owner flag on a legacy/unflagged profile, then adopts it.
+    private func promoteToOwner(_ user: User) {
+        user.isOwner = true
+        try? modelContext.save()
+        adoptOwner(user)
+    }
+
+    private func adoptOwner(_ user: User) {
+        if ownUserID != user.id.uuidString { ownUserID = user.id.uuidString }
+        vm.profile = user
+    }
+
     var body: some View {
         NavigationStack(path: $navigation) {
             ZStack {
@@ -107,14 +151,13 @@ struct InitialView: View {
             scene.onSpiralTapped = {
                 showVacuoView = true
             }
-            if users.first != nil {
-                vm.profile = currentUser
-            }
+            syncOwner()
         }
         .onChange(of: users) {
-            vm.profile = currentUser
+            syncOwner()
         }
         .onChange(of: connections, initial: true) { _, newConnections in
+            syncOwner()
             scene.updateConnections(receivedConnections: Set(newConnections.filter { !$0.inVacuo }))
             scene.updateNodeVisuals()
         }
@@ -123,6 +166,13 @@ struct InitialView: View {
             scene.updateNodeVisuals()
         }
         .onReceive(NotificationCenter.default.publisher(for: .friendProfileUpdated)) { _ in
+            scene.updateNodeVisuals()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification)) { _ in
+            // CloudKit imports records incrementally — friend photos often arrive after the first paint.
+            // Re-sync the scene and re-pull textures so avatars fill in without needing an app relaunch.
+            syncOwner()
+            scene.updateConnections(receivedConnections: Set(connections.filter { !$0.inVacuo }))
             scene.updateNodeVisuals()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

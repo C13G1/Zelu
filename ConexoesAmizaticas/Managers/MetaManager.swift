@@ -20,12 +20,15 @@ class MetaManager {
     private static let proximosThreshold:     Double = 40
     private static let inseparaveisThreshold: Double = 50
 
-    private(set) var meta: Meta
-    private(set) var currentRelationshipState: RelationshipState
-    private(set) var score: Double
+    private(set) var meta: Meta = Meta.mensal
+    private(set) var currentRelationshipState: RelationshipState = RelationshipState.afastados
+    private(set) var score: Double = 10.0
 
     /// Marks the date up to which score decay has already been applied, preventing double-deductions.
     var lastDecayDate: Date?
+
+    /// Inverse of `Connection.metaManager`, required by CloudKit.
+    var connection: Connection?
 
     init(score: Double = 10.0) {
         self.score = score

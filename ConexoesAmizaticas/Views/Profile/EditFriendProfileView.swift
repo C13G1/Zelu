@@ -31,7 +31,7 @@ struct EditFriendProfileView: View {
             @Bindable var bindable = viewModel
 
             VStack(spacing: 32) {
-                EditableAvatar(imageData: viewModel.connection.friend.profilePicture,
+                EditableAvatar(imageData: viewModel.connection.friend?.profilePicture ?? Data(),
                                selection: $bindable.selectedPhoto) {
                     await viewModel.commitSelectedPhoto()
                 }
@@ -66,7 +66,7 @@ struct EditFriendProfileView: View {
         
         for _ in 0..<5 {
             let post = Post(images: [mockData])
-            c.feedManager.addPost(post)
+            c.feedManager?.addPost(post)
         }
         
         return c

@@ -24,7 +24,7 @@ class SearchViewModel {
     var searchResults: [Connection] {
         guard !searchText.isEmpty else { return [] }
         return connections.filter { c in
-            c.friend.name.localizedStandardContains(searchText)
+            c.friend?.name.localizedStandardContains(searchText) ?? false
         }
     }
 

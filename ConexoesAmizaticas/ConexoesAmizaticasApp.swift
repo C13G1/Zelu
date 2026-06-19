@@ -26,7 +26,11 @@ struct ConexoesAmizaticasApp: App {
     }
     
     var sharedModelContainer: ModelContainer = {
-        let modelConfiguration = ModelConfiguration(schema: AppSchema.schema, isStoredInMemoryOnly: false)
+        let modelConfiguration = ModelConfiguration(
+            schema: AppSchema.schema,
+            isStoredInMemoryOnly: false,
+            cloudKitDatabase: .private("iCloud.com.AppleDeveloperAcademyMackenzie.ConexoesAmizaticas")
+        )
 
         do {
             return try ModelContainer(for: AppSchema.schema, configurations: [modelConfiguration])

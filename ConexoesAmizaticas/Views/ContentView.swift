@@ -14,17 +14,57 @@ import SwiftData
 /// in the local SwiftData container. It seamlessly bridges the user into the `OnboardingView` on first launch
 /// or directs them to the main `InitialView` dashboard on subsequent sessions.
 struct ContentView: View {
+    // Identifies the owner profile so it survives CloudKit's nondeterministic import order, and gates
+    // onboarding without depending on the async `users` query (which is empty mid-sync and caused a flash).
+    @AppStorage("ownUserID") private var ownUserID = ""
     @Query private var users: [User]
-    
+
+    @State private var sync = CloudKitSyncMonitor()
+    /// Safety net so a stalled/offline sync never traps the user on the loading screen forever.
+    @State private var syncTimedOut = false
+
+    /// We already have a profile (marker set, or any user present locally), so go straight to the app.
+    private var hasProfile: Bool { !ownUserID.isEmpty || !users.isEmpty }
+
+    /// Show onboarding only once we are sure there is nothing to recover: sync finished (or timed out)
+    /// and still no profile exists.
+    private var shouldOnboard: Bool { !hasProfile && (sync.hasFinishedInitialSync || syncTimedOut) }
+
+    /// Still checking CloudKit for existing data — keep the loading screen up instead of flashing onboarding.
+    private var isCheckingCloud: Bool { !hasProfile && !shouldOnboard }
+
     var body: some View {
         ZStack{
             InitialView()
-            if users.isEmpty {
+
+            if isCheckingCloud {
+                LoadingView()
+            } else if shouldOnboard {
                 Rectangle()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .opacity(0.9)
                     .ignoresSafeArea(.all)
                 OnboardingView()
+            }
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(8))
+            syncTimedOut = true
+        }
+    }
+}
+
+/// Lightweight splash shown while CloudKit reports whether existing data is on its way down.
+struct LoadingView: View {
+    var body: some View {
+        ZStack {
+            Color.lightBackground.ignoresSafeArea()
+            VStack(spacing: 16) {
+                ProgressView()
+                    .controlSize(.large)
+                Text("Carregando seus dados...")
+                    .font(.custom("Sora-Regular", size: 16))
+                    .foregroundStyle(.secondary)
             }
         }
     }

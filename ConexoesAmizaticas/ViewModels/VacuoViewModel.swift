@@ -33,7 +33,7 @@ class VacuoViewModel {
     func rescueFocusedConnection(modelContext: ModelContext) {
         guard let connection = focusedConnection else { return }
         connection.lastMet = Date.now
-        connection.metaManager.addOrSubtractScore(5)
+        connection.metaManager?.addOrSubtractScore(5)
         Aptabase.shared.trackEvent("friend_rescued")
         try? modelContext.save()
         NotificationManager.scheduleMetaReminder(for: connection)

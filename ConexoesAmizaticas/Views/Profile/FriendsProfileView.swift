@@ -26,13 +26,17 @@ struct FriendsProfileView: View {
 
     @Query private var connections: [Connection]
     @Query private var allUsers: [User]
+    @AppStorage("ownUserID") private var ownUserID = ""
     @State private var refreshToken = 0
 
     /// The localized view model handling the complex swipe gestures and deletion states for the photo carousel.
     @State private var feedViewModel: FriendFeedViewModel
 
     private var ownUser: User? {
-        let friendIDs = Set(connections.map { $0.friend.id })
+        if let owner = User.owner(in: allUsers) { return owner }
+        if let saved = allUsers.first(where: { $0.id.uuidString == ownUserID }) { return saved }
+        // Last resort before the flag is set: the user that isn't a friend of any connection.
+        let friendIDs = Set(connections.compactMap { $0.friend?.id })
         return allUsers.first { !friendIDs.contains($0.id) }
     }
 
@@ -105,7 +109,7 @@ struct FriendsProfileView: View {
             .onAppear {
                 Aptabase.shared.trackEvent("screen_view", with: [
                     "name": "friend_profile",
-                    "relationship_state": viewModel.connection.metaManager.currentRelationshipState.rawValue
+                    "relationship_state": viewModel.connection.metaManager?.currentRelationshipState.rawValue ?? ""
                 ])
             }
             .onReceive(NotificationCenter.default.publisher(for: .friendProfileUpdated)) { _ in

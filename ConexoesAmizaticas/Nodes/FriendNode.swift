@@ -48,9 +48,9 @@ class FriendNode: SKShapeNode {
     /// Initializes a new interactive node based on a specific connection's state.
     /// - Parameter connection: The `Connection` model containing the user data and relationship score.
     init(connection: Connection) {
-        self.score = connection.metaManager.score
-        let state = connection.metaManager.currentRelationshipState
-        let imageData = connection.friend.profilePicture
+        self.score = connection.metaManager?.score ?? 0
+        let state = connection.metaManager?.currentRelationshipState ?? .afastados
+        let imageData = connection.friend?.profilePicture ?? Data()
         let path = UIBezierPath(roundedRect: CGRect(x: -128, y: -128, width: 256, height: 256), cornerRadius: 128).cgPath
 
         self.sprite = SKShapeNode(path: path)
@@ -62,7 +62,7 @@ class FriendNode: SKShapeNode {
         self.sprite.lineWidth = 20
         super.init()
 
-        self.name = connection.friend.id.uuidString
+        self.name = connection.friend?.id.uuidString ?? ""
         // 138 = 128 (path radius) + 10 (the colored stroke that sits outside the path) so colored
         // borders meet edge-to-edge with the spiral and with other friend nodes without overlapping.
         self.physicsBody = SKPhysicsBody(circleOfRadius: 138)

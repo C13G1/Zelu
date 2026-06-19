@@ -29,8 +29,8 @@ struct VacuoView: View {
     }()
 
     private var tutorialSampleImage: UIImage {
-        let data = viewModel.vacuumConnections.first?.friend.profilePicture
-            ?? allConnections.first?.friend.profilePicture
+        let data = viewModel.vacuumConnections.first?.friend?.profilePicture
+            ?? allConnections.first?.friend?.profilePicture
         return data.flatMap(UIImage.init(data:)) ?? UIImage(named: "DefaultPicture") ?? UIImage()
     }
 
@@ -143,8 +143,8 @@ struct VacuoView: View {
 
     private func rescueOverlay(for connection: Connection) -> some View {
         ConfirmationOverlay(
-            imageData: connection.friend.profilePicture,
-            preTitle: "Você deixou \(connection.friend.name) no vácuo",
+            imageData: connection.friend?.profilePicture ?? Data(),
+            preTitle: "Você deixou \(connection.friend?.name ?? "") no vácuo",
             title: "QUER RESGATAR ESSE CONTATO?",
             description: "Contatos ficam no vácuo por até 30 dias. Depois disso, a conexão é perdida e será preciso recomeçar do zero.",
             confirmIcon: "checkmark",
