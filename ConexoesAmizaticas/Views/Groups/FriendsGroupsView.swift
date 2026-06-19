@@ -156,8 +156,9 @@ struct FriendsGroupsView: View {
             return
         }
         do {
+            // The slot is granted inside StoreKitManager when the verified transaction is processed (also
+            // covering deferred/interrupted purchases), so here we only open the creation sheet.
             if try await storeManager.purchaseConsumable(product) {
-                GroupSlots.addPurchasedSlot()
                 showCreateGroupSheet = true
             }
         } catch {

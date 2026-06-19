@@ -23,7 +23,13 @@ class StoreKitManager: ObservableObject {
     @Published var isLoading: Bool = false
     
     private var transactionListener: Task<Void, Error>?
-    
+
+    /// Product id of the consumable that unlocks creating one extra group.
+    private let groupProductID = "Group"
+    /// Transaction ids already turned into a group slot, so a transaction delivered to both the purchase
+    /// call and the updates listener is never counted twice.
+    private var grantedTransactionIDs: Set<UInt64> = []
+
     init() {
         transactionListener = listenForTransactions()
         Task {
@@ -76,9 +82,9 @@ class StoreKitManager: ObservableObject {
         switch result {
         case .success(let verification):
             let transaction = try checkVerified(verification)
-            await transaction.finish()
+            await redeemIfGroup(transaction)
             return true
-            
+
         case .userCancelled:
             return false
         case .pending:
@@ -86,6 +92,18 @@ class StoreKitManager: ObservableObject {
         @unknown default:
             return false
         }
+    }
+
+    /// Grants a group slot for a verified, unrevoked "Group" purchase exactly once, then finishes the
+    /// transaction so StoreKit stops redelivering it. Called from both the purchase flow and the updates
+    /// listener, so deferred (Ask to Buy) and interrupted purchases still grant the slot they paid for.
+    private func redeemIfGroup(_ transaction: StoreKit.Transaction) async {
+        if transaction.productID == groupProductID,
+           transaction.revocationDate == nil,
+           grantedTransactionIDs.insert(transaction.id).inserted {
+            GroupSlots.addPurchasedSlot()
+        }
+        await transaction.finish()
     }
     
     // MARK: - Restaurar compras
@@ -123,7 +141,7 @@ class StoreKitManager: ObservableObject {
                 do {
                     let transaction = try await self.checkVerified(result)
                     await self.updatePurchaseStatus()
-                    await transaction.finish()
+                    await self.redeemIfGroup(transaction)
                 } catch {
                     print("Transação inválida: \(error)")
                 }
