@@ -29,7 +29,11 @@ struct FriendsGroupsScroll: View {
                     .frame(width: frameWidth, height: frameHeight)
             } else {
                 ForEach(Array(viewModel.friendsGroups.enumerated()), id: \.element.id) { index, group in
-                    FriendsGroupsFrame(group: group)
+                    FriendsGroupsFrame(
+                        group: group,
+                        isCentered: viewModel.isCentered(index),
+                        onFocus: { viewModel.focus(index) }
+                    )
                         .zIndex(viewModel.zIndex(index))
                         .offset(
                             x: viewModel.xOffset(index),

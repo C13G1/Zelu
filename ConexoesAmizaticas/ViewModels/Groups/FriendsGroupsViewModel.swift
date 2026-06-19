@@ -75,7 +75,22 @@ class FriendsGroupsViewModel {
     }
     
     // MARK: - Carousel Geometry Math
-    
+
+    /// Whether the card at `index` is the one currently centered (front) in the carousel.
+    func isCentered(_ index: Int) -> Bool {
+        abs(distance(index)) < 0.5
+    }
+
+    /// Animates the carousel so the card at `index` rotates to the center, so a side group can be brought
+    /// into focus with a tap before it is opened.
+    func focus(_ index: Int) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+            snappedItem = Double(index)
+            draggingItem = Double(index)
+            activeIndex = index
+        }
+    }
+
     /// Determines how far away an item is from the current focal point of the carousel.
     func distance(_ index: Int) -> Double {
         if !friendsGroups.isEmpty {
