@@ -23,7 +23,7 @@ struct BLEViewLogicTests {
     }
 
     private func existing(in connections: [Connection], for friend: User) -> Connection? {
-        connections.first { $0.friend.id == friend.id }
+        connections.first { $0.friend?.id == friend.id }
     }
 
     @Test("existingConnection retorna nil quando o amigo não tem conexão")
@@ -55,7 +55,7 @@ struct BLEViewLogicTests {
 
         let conns = try context.fetch(FetchDescriptor<Connection>())
         #expect(conns.count == 1)
-        #expect(conns.first?.friend.id == friend.id)
+        #expect(conns.first?.friend?.id == friend.id)
     }
 
     @Test("confirmFriend atualiza lastMet e soma 10 ao score para amigo existente")
@@ -65,10 +65,10 @@ struct BLEViewLogicTests {
 
         // Replica o if do confirmFriend
         connection.lastMet = Date.now
-        connection.metaManager.addOrSubtractScore(10)
+        connection.metaManager?.addOrSubtractScore(10)
 
         #expect(connection.lastMet != nil)
-        #expect(connection.metaManager.score == 30)
+        #expect(connection.metaManager?.score == 30)
     }
 
     @Test("Não é possível parear consigo mesmo (mesmo id)")

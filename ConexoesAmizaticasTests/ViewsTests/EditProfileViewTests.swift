@@ -102,9 +102,9 @@ struct EditFriendProfileSaveLogicTests {
 
     private func performSave(name: String, image: Data?, on connection: Connection) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        connection.friend.editName(trimmed)
+        connection.friend?.editName(trimmed)
         if let image = image {
-            connection.friend.editProfileImageData(image)
+            connection.friend?.editProfileImageData(image)
         }
     }
 
@@ -113,7 +113,7 @@ struct EditFriendProfileSaveLogicTests {
         let friend = User(name: "Antes", profilePicture: Data())
         let connection = Connection(friend: friend)
         performSave(name: "Depois", image: nil, on: connection)
-        #expect(connection.friend.getName() == "Depois")
+        #expect(connection.friend?.getName() == "Depois")
     }
 
     @Test("Edição do amigo preserva imagem quando nil")
@@ -122,6 +122,6 @@ struct EditFriendProfileSaveLogicTests {
         let friend = User(name: "X", profilePicture: original)
         let connection = Connection(friend: friend)
         performSave(name: "X", image: nil, on: connection)
-        #expect(connection.friend.getProfileImageData() == original)
+        #expect(connection.friend?.getProfileImageData() == original)
     }
 }

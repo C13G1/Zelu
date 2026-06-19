@@ -39,7 +39,7 @@ struct FriendsProfileViewLogicTests {
     }
 
     private func ownUser(allUsers: [User], connections: [Connection]) -> User? {
-        let friendIDs = Set(connections.map { $0.friend.id })
+        let friendIDs = Set(connections.compactMap { $0.friend?.id })
         return allUsers.first { !friendIDs.contains($0.id) }
     }
 

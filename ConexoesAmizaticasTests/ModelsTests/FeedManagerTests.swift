@@ -14,7 +14,7 @@ struct FeedManagerTests {
     @Test("Feed manager inicia vazio")
     func startsEmpty() {
         let feed = FeedManager()
-        #expect(feed.posts.isEmpty)
+        #expect((feed.posts ?? []).isEmpty)
     }
 
     @Test("addPost adiciona o post à lista")
@@ -24,8 +24,8 @@ struct FeedManagerTests {
 
         feed.addPost(post)
 
-        #expect(feed.posts.count == 1)
-        #expect(feed.posts.first?.id == post.id)
+        #expect((feed.posts ?? []).count == 1)
+        #expect((feed.posts ?? []).first?.id == post.id)
     }
 
     @Test("addPost preserva ordem de inserção")
@@ -39,7 +39,7 @@ struct FeedManagerTests {
         feed.addPost(p2)
         feed.addPost(p3)
 
-        #expect(feed.posts.map(\.id) == [p1.id, p2.id, p3.id])
+        #expect((feed.posts ?? []).map(\.id) == [p1.id, p2.id, p3.id])
     }
 
     @Test("deletePost remove apenas o post com id correspondente")
@@ -52,8 +52,8 @@ struct FeedManagerTests {
 
         feed.deletePost(id: p1.id)
 
-        #expect(feed.posts.count == 1)
-        #expect(feed.posts.first?.id == p2.id)
+        #expect((feed.posts ?? []).count == 1)
+        #expect((feed.posts ?? []).first?.id == p2.id)
     }
 
     @Test("deletePost com id inexistente não altera a lista")
@@ -64,6 +64,6 @@ struct FeedManagerTests {
 
         feed.deletePost(id: UUID())
 
-        #expect(feed.posts.count == 1)
+        #expect((feed.posts ?? []).count == 1)
     }
 }

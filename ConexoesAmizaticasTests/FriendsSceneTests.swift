@@ -37,7 +37,7 @@ struct FriendsSceneTests {
         let sut = createSUT(connections: Set([connection]))
         
         // Ensure initial connections are added
-        #expect(sut.rootNode.childNode(withName: connection.friend.id.uuidString) != nil, "Initial connections were not added to scene.")
+        #expect(sut.rootNode.childNode(withName: connection.friend?.id.uuidString ?? "") != nil, "Initial connections were not added to scene.")
         
         // Add a new connection
         let newConnection = Connection(friend: User())
@@ -47,7 +47,7 @@ struct FriendsSceneTests {
         
         // Verify both nodes exist
         #expect(sut.connections.count == 2, "Scene should have exactly two connections")
-        #expect(sut.rootNode.childNode(withName: newConnection.friend.id.uuidString) != nil, "newConnection node should be added to the rootNode.")
+        #expect(sut.rootNode.childNode(withName: newConnection.friend?.id.uuidString ?? "") != nil, "newConnection node should be added to the rootNode.")
     }
 
     @Test("Updating connections removes deleted nodes from the scene")
@@ -61,8 +61,8 @@ struct FriendsSceneTests {
         
         // Check if right connection was removed
         #expect(sut.connections.count == 1, "Scene should have exactly two connections")
-        #expect(sut.rootNode.childNode(withName: connectionToRemove.friend.id.uuidString) == nil, "this node should be removed from the rootNode.")
-        #expect(sut.rootNode.childNode(withName: connectionToMaintain.friend.id.uuidString) != nil, "this node should remain.")
+        #expect(sut.rootNode.childNode(withName: connectionToRemove.friend?.id.uuidString ?? "") == nil, "this node should be removed from the rootNode.")
+        #expect(sut.rootNode.childNode(withName: connectionToMaintain.friend?.id.uuidString ?? "") != nil, "this node should remain.")
     }
 
     @Test("Filtering by name hides non-matching nodes and disables their physics")

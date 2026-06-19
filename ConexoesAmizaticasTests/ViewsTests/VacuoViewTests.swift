@@ -24,7 +24,7 @@ struct VacuoViewLogicTests {
 
         let result = vacuumConnections([active, inVacuum])
         #expect(result.count == 1)
-        #expect(result.first?.friend.getName() == "Vacuum")
+        #expect(result.first?.friend?.getName() == "Vacuum")
     }
 
     @Test("Retorna vazio quando nenhuma connection está em vacuum")
@@ -40,10 +40,10 @@ struct VacuoViewLogicTests {
         #expect(connection.inVacuo == true)
 
         connection.lastMet = Date.now
-        connection.metaManager.addOrSubtractScore(5)
+        connection.metaManager?.addOrSubtractScore(5)
 
         #expect(connection.lastMet != nil)
-        #expect(connection.metaManager.score == 5)
+        #expect(connection.metaManager?.score == 5)
         #expect(connection.inVacuo == false)
     }
 }

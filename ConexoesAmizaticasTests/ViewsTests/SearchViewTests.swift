@@ -19,7 +19,7 @@ struct SearchViewFilterTests {
 
     private func filterConnections(_ connections: [Connection], searchText: String) -> [Connection] {
         if searchText.isEmpty { return [] }
-        return connections.filter { $0.friend.name.localizedStandardContains(searchText) }
+        return connections.filter { $0.friend?.name.localizedStandardContains(searchText) ?? false }
     }
 
     @Test("Texto vazio retorna lista vazia")
@@ -33,7 +33,7 @@ struct SearchViewFilterTests {
         let all = [make("Ana"), make("Antonio"), make("Bia")]
         let result = filterConnections(all, searchText: "an")
         #expect(result.count == 2)
-        #expect(Set(result.map(\.friend.name)) == Set(["Ana", "Antonio"]))
+        #expect(Set(result.compactMap(\.friend?.name)) == Set(["Ana", "Antonio"]))
     }
 
     @Test("Busca é case-insensitive")

@@ -68,7 +68,7 @@ struct InitialViewModelTests {
 
         #expect(vm.profile.getName() == "Eu" || vm.profile.getName() == "Amigo") // depende da ordem de inserção
         #expect(vm.connectionsWithFriends.count == 1)
-        #expect(vm.connectionsWithFriends.first?.friend.getName() == "Amigo")
+        #expect(vm.connectionsWithFriends.first?.friend?.getName() == "Amigo")
     }
 
     // MARK: - getFriends

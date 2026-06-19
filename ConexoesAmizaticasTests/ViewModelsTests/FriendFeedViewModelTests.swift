@@ -49,9 +49,9 @@ struct FriendFeedViewModelTests {
         let mid = Post(images: [], date: Date(timeIntervalSince1970: 2_000))
         let new = Post(images: [], date: Date(timeIntervalSince1970: 3_000))
 
-        connection.feedManager.addPost(old)
-        connection.feedManager.addPost(new)
-        connection.feedManager.addPost(mid)
+        connection.feedManager?.addPost(old)
+        connection.feedManager?.addPost(new)
+        connection.feedManager?.addPost(mid)
 
         let vm = FriendFeedViewModel(connection: connection)
 
@@ -63,7 +63,7 @@ struct FriendFeedViewModelTests {
         let context = try makeContext()
         let connection = makeConnection()
         let post = Post(images: [Data([0x01])])
-        connection.feedManager.addPost(post)
+        connection.feedManager?.addPost(post)
         context.insert(post)
 
         let vm = FriendFeedViewModel(connection: connection)
@@ -74,7 +74,7 @@ struct FriendFeedViewModelTests {
         vm.deletePost(id: post.id, modelContext: context)
 
         #expect(vm.posts.isEmpty)
-        #expect(connection.feedManager.posts.isEmpty)
+        #expect((connection.feedManager?.posts ?? []).isEmpty)
         #expect(vm.snappedItem == 0)
         #expect(vm.draggingItem == 0)
         #expect(vm.activeIndex == 0)
@@ -85,14 +85,14 @@ struct FriendFeedViewModelTests {
         let context = try makeContext()
         let connection = makeConnection()
         let post = Post(images: [])
-        connection.feedManager.addPost(post)
+        connection.feedManager?.addPost(post)
         context.insert(post)
 
         let vm = FriendFeedViewModel(connection: connection)
         vm.deletePost(id: UUID(), modelContext: context)
 
         #expect(vm.posts.count == 1)
-        #expect(connection.feedManager.posts.count == 1)
+        #expect((connection.feedManager?.posts ?? []).count == 1)
     }
     
     @Test("distance retorna 0 quando não há posts")
@@ -104,9 +104,9 @@ struct FriendFeedViewModelTests {
     @Test("distance no índice ativo retorna 0")
     func distanceAtActiveIndexIsZero() {
         let connection = makeConnection()
-        connection.feedManager.addPost(Post(images: []))
-        connection.feedManager.addPost(Post(images: []))
-        connection.feedManager.addPost(Post(images: []))
+        connection.feedManager?.addPost(Post(images: []))
+        connection.feedManager?.addPost(Post(images: []))
+        connection.feedManager?.addPost(Post(images: []))
 
         let vm = FriendFeedViewModel(connection: connection)
         vm.draggingItem = 1
@@ -116,9 +116,9 @@ struct FriendFeedViewModelTests {
     @Test("xOffset no centro retorna ~0")
     func xOffsetAtCenterIsZero() {
         let connection = makeConnection()
-        connection.feedManager.addPost(Post(images: []))
-        connection.feedManager.addPost(Post(images: []))
-        connection.feedManager.addPost(Post(images: []))
+        connection.feedManager?.addPost(Post(images: []))
+        connection.feedManager?.addPost(Post(images: []))
+        connection.feedManager?.addPost(Post(images: []))
 
         let vm = FriendFeedViewModel(connection: connection)
         vm.draggingItem = 0
@@ -129,7 +129,7 @@ struct FriendFeedViewModelTests {
     func yOffsetIsOffscreenForFarItems() {
         let connection = makeConnection()
         for _ in 0..<10 {
-            connection.feedManager.addPost(Post(images: []))
+            connection.feedManager?.addPost(Post(images: []))
         }
 
         let vm = FriendFeedViewModel(connection: connection)
@@ -140,7 +140,7 @@ struct FriendFeedViewModelTests {
     @Test("yOffset no centro retorna 0")
     func yOffsetAtCenterIsZero() {
         let connection = makeConnection()
-        connection.feedManager.addPost(Post(images: []))
+        connection.feedManager?.addPost(Post(images: []))
 
         let vm = FriendFeedViewModel(connection: connection)
         vm.draggingItem = 0
@@ -151,7 +151,7 @@ struct FriendFeedViewModelTests {
     func opacityBehaviour() {
         let connection = makeConnection()
         for _ in 0..<10 {
-            connection.feedManager.addPost(Post(images: []))
+            connection.feedManager?.addPost(Post(images: []))
         }
 
         let vm = FriendFeedViewModel(connection: connection)
@@ -164,7 +164,7 @@ struct FriendFeedViewModelTests {
     func scaleEffectShrinksWithDistance() {
         let connection = makeConnection()
         for _ in 0..<5 {
-            connection.feedManager.addPost(Post(images: []))
+            connection.feedManager?.addPost(Post(images: []))
         }
 
         let vm = FriendFeedViewModel(connection: connection)
@@ -177,7 +177,7 @@ struct FriendFeedViewModelTests {
     func zIndexIsHighestAtCenter() {
         let connection = makeConnection()
         for _ in 0..<5 {
-            connection.feedManager.addPost(Post(images: []))
+            connection.feedManager?.addPost(Post(images: []))
         }
 
         let vm = FriendFeedViewModel(connection: connection)
@@ -190,7 +190,7 @@ struct FriendFeedViewModelTests {
     func rotationEffectBehaviour() {
         let connection = makeConnection()
         for _ in 0..<5 {
-            connection.feedManager.addPost(Post(images: []))
+            connection.feedManager?.addPost(Post(images: []))
         }
 
         let vm = FriendFeedViewModel(connection: connection)
