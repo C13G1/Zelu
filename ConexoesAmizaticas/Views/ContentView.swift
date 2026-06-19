@@ -17,6 +17,9 @@ struct ContentView: View {
     // Identifies the owner profile so it survives CloudKit's nondeterministic import order, and gates
     // onboarding without depending on the async `users` query (which is empty mid-sync and caused a flash).
     @AppStorage("ownUserID") private var ownUserID = ""
+    // Set the instant the user deletes their account so routing snaps to onboarding without waiting on the
+    // CloudKit delete to flush the `users` query. Cleared when a new profile is created.
+    @AppStorage("accountDeleted") private var accountDeleted = false
     @Query private var users: [User]
 
     @State private var sync = CloudKitSyncMonitor()
@@ -26,16 +29,23 @@ struct ContentView: View {
     /// We already have a profile (marker set, or any user present locally), so go straight to the app.
     private var hasProfile: Bool { !ownUserID.isEmpty || !users.isEmpty }
 
-    /// Show onboarding only once we are sure there is nothing to recover: sync finished (or timed out)
-    /// and still no profile exists.
-    private var shouldOnboard: Bool { !hasProfile && (sync.hasFinishedInitialSync || syncTimedOut) }
+    /// Show onboarding once we know nothing is worth recovering: either the account was just deleted, or
+    /// sync finished (or timed out) with no profile present.
+    private var shouldOnboard: Bool {
+        if accountDeleted { return true }
+        return !hasProfile && (sync.hasFinishedInitialSync || syncTimedOut)
+    }
 
     /// Still checking CloudKit for existing data — keep the loading screen up instead of flashing onboarding.
     private var isCheckingCloud: Bool { !hasProfile && !shouldOnboard }
 
     var body: some View {
         ZStack{
+            // Rebuild from scratch when the account is deleted so the old profile, friend nodes and scene
+            // don't bleed through the translucent onboarding overlay — the background resets to a clean
+            // first-launch welcome.
             InitialView()
+                .id(accountDeleted)
 
             if isCheckingCloud {
                 LoadingView()

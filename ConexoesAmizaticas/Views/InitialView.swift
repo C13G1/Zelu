@@ -48,6 +48,8 @@ struct InitialView: View {
     /// friend. Recovery only acts when the choice is unambiguous, so a friend whose `Connection` has not
     /// finished importing is never mistaken for the owner. Runs again on every users/connections change.
     private func syncOwner() {
+        // Account just deleted: don't re-promote a residual record and rewrite the cleared marker.
+        if UserDefaults.standard.bool(forKey: "accountDeleted") { return }
         if let owner = User.owner(in: users) {
             // Converge duplicate owners (onboarded on several devices before syncing) to one stable profile.
             let extras = users.filter { $0.isOwner && $0.id != owner.id }

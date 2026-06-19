@@ -66,5 +66,11 @@ class EditProfileViewModel {
         try? modelContext.delete(model: User.self)
         try? modelContext.save()
         UserDefaults.standard.removeObject(forKey: "ownUserID")
+        // Snap routing to onboarding now, before the CloudKit delete flushes the `users` query, and keep it
+        // there across relaunches until a new profile is created. Cleared in `createProfile`.
+        UserDefaults.standard.set(true, forKey: "accountDeleted")
+        // Drop the mirror zone server-side so the account can't be restored by reinstalling before the
+        // local deletions finish exporting to CloudKit.
+        Task { await CloudKitReset.wipePrivateZone() }
     }
 }

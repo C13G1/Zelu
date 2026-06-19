@@ -58,6 +58,8 @@ class CreatProfileViewModel {
         modelContext.insert(user)
         // Local fast-path marker (AppStorage); `isOwner` is the synced source of truth across devices.
         UserDefaults.standard.set(user.id.uuidString, forKey: "ownUserID")
+        // Lift the post-deletion onboarding lock now that a fresh profile exists.
+        UserDefaults.standard.removeObject(forKey: "accountDeleted")
         Aptabase.shared.trackEvent("onboarding_completed")
     }
 }
