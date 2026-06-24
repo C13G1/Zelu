@@ -31,10 +31,10 @@ other in real life, and keep them close — all in a native SwiftUI + SpriteKit 
 - [Screenshots](#-screenshots)
 - [Features](#-features)
 - [How It Works](#-how-it-works)
+- [Roadmap](#-roadmap)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
 - [Getting Started](#-getting-started)
-- [Roadmap](#-roadmap)
 - [Authors](#-authors)
 - [License](#-license)
 
@@ -105,6 +105,15 @@ a single CloudKit-backed SwiftData `ModelContainer`.
 
 ---
 
+## 🗺️ Roadmap
+
+Things we'd like to bring to Zelu next:
+
+- **Group retrospectives** — shared timelines and memory recaps for whole groups, not just one-on-one friendships.
+- More ways to look back on the moments you've built over time.
+
+---
+
 ## 🛠️ Tech Stack
 
 | Area | Tech |
@@ -156,15 +165,6 @@ open ConexoesAmizaticas.xcodeproj
 Then set your own **Signing Team** and **Bundle Identifier**, and update the CloudKit
 container to one your team owns. Nearby discovery and proximity features are best tested
 on **two physical devices** — Bluetooth and Multipeer don't work between simulators.
-
----
-
-## 🗺️ Roadmap
-
-Things we'd like to bring to Zelu next:
-
-- **Group retrospectives** — shared timelines and memory recaps for whole groups, not just one-on-one friendships.
-- More ways to look back on the moments you've built over time.
 
 ---
 
