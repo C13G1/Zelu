@@ -34,6 +34,7 @@ other in real life, and keep them close — all in a native SwiftUI + SpriteKit 
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
 - [Getting Started](#-getting-started)
+- [Roadmap](#-roadmap)
 - [Authors](#-authors)
 - [License](#-license)
 
@@ -82,7 +83,7 @@ Learn more at [**zelu.online**](https://zelu.online) (landing page repo:
 - **🌀 The void** — neglect a friend and their bubble drifts into the void at the center; meet up in time to rescue them, or leave them too long and lose the contact entirely, having to reconnect in person.
 - **🎯 Meeting goals (Metas)** — pick a cadence per friend (weekly, every 15 days, monthly, every 3 / 6 months, yearly); Zelu tracks it and nudges you when it's time to show up.
 - **📡 Add in person** — no links or QR codes; bring two phones close and Zelu detects the encounter over Bluetooth (CoreBluetooth) and the local network (MultipeerConnectivity).
-- **📸 Shared moments** — turn each in-person encounter into a photo in your shared gallery, building a timeline of the friendship.
+- **📸 Moments** — turn each in-person encounter into a photo, kept locally on your device, building a timeline of the friendship.
 - **🔓 No account** — just a name and a photo; no signup, phone number, or email.
 - **👥 Groups** — organize friends into groups; one free group, with extra slots available via in-app purchase.
 - **☁️ iCloud sync** — profiles, connections, and groups sync across devices with CloudKit-backed SwiftData.
@@ -155,6 +156,15 @@ open ConexoesAmizaticas.xcodeproj
 Then set your own **Signing Team** and **Bundle Identifier**, and update the CloudKit
 container to one your team owns. Nearby discovery and proximity features are best tested
 on **two physical devices** — Bluetooth and Multipeer don't work between simulators.
+
+---
+
+## 🗺️ Roadmap
+
+Things we'd like to bring to Zelu next:
+
+- **Group retrospectives** — shared timelines and memory recaps for whole groups, not just one-on-one friendships.
+- More ways to look back on the moments you've built over time.
 
 ---
 
