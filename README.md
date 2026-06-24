@@ -4,12 +4,12 @@
 
 # Zelu
 
-### Your friendships as a living social universe. 🪐
+### Keep your friendships alive — before they drift into the void. 🫧
 
-Zelu turns your relationships into an interactive map: you sit at the center and every
-friend orbits you as a planet. The closer the friendship, the closer and brighter the
-orbit. Set goals to see each friend, log your encounters, and watch the connection grow
-or drift — all in a native SwiftUI + SpriteKit app.
+Zelu turns your relationships into living bubbles you can touch and play with. The more
+you actually see a friend, the bigger their bubble; neglect them and they shrink and
+drift toward the void at the center. Set a goal for how often you want to meet, see each
+other in real life, and keep them close — all in a native SwiftUI + SpriteKit app.
 
 <br/>
 
@@ -42,19 +42,18 @@ or drift — all in a native SwiftUI + SpriteKit app.
 ## 📖 About
 
 Zelu is a *relationship-cultivating* app — *"seu mais novo ambiente cultivador de
-relacionamentos."* Instead of a flat contact list, your friendships live in an
-interactive physics scene: you are the central spiral, and each friend is a planet
-orbiting around you.
+relacionamentos."* Instead of a flat contact list, your friendships live as **bubbles**
+in an interactive physics scene. You can drag them around and play with their photos,
+and the **size** of each bubble shows how much you've actually been seeing that friend.
 
-Every connection has a **score** and a **relationship state** — `inseparáveis`,
-`próximos`, `estáveis`, `distantes`, `afastados`. The state decides how a friend looks
-and moves: closer friends orbit faster, larger, and brighter; drifting ones fall to the
-outer, slower, dimmer rings. You keep relationships alive by setting **meeting goals**
-(`Metas`) and logging real-world encounters, which feeds the score back into the scene.
+At the center sits the **void** (`vácuo`). When a friendship goes too long without a
+real-world encounter, that friend's bubble shrinks and drifts into the void — they don't
+disappear, they wait there, but the longer you leave them the harder they are to rescue.
+You keep friends close by setting a **meeting goal** (`Meta`) and meeting them in person.
 
-Zelu also helps you meet people in the first place — it finds other nearby Zelu users
-over Bluetooth and the local network, and can nudge you with a notification when someone
-is close by.
+Adding friends happens in person: when you and a friend are near each other with the app
+open, your phones recognize each other over Bluetooth and the local network — no links,
+no QR codes, and no account, phone number, or email required.
 
 Zelu is **live on the App Store** — [download it here](https://apps.apple.com/br/app/zelu/id6772319658)
 or [join the TestFlight beta](https://testflight.apple.com/join/MuUJhqc9).
@@ -67,7 +66,7 @@ Learn more at [**zelu.online**](https://zelu.online) (landing page repo:
 
 <div align="center">
 
-<img src="docs/universe.png" width="24%" alt="Social universe"/>
+<img src="docs/universe.png" width="24%" alt="Friend bubbles"/>
 <img src="docs/profile.png" width="24%" alt="Friend profile"/>
 <img src="docs/nearby.png" width="24%" alt="Nearby discovery"/>
 <img src="docs/onboarding.png" width="24%" alt="Onboarding"/>
@@ -78,29 +77,29 @@ Learn more at [**zelu.online**](https://zelu.online) (landing page repo:
 
 ## 🚀 Features
 
-- **🪐 Social universe** — friends visualized as orbiting planets in an interactive SpriteKit scene, driven by real physics (springs, collisions, orbits).
-- **📊 Relationship states** — five closeness tiers that change each friend's orbit radius, speed, size, and color as the connection evolves.
-- **🎯 Meeting goals (Metas)** — set how often you want to see a friend; logging encounters recalculates the relationship score automatically.
-- **📡 Nearby discovery** — find other Zelu users around you over Bluetooth (CoreBluetooth) and the local network (MultipeerConnectivity).
-- **🔔 Proximity notifications** — get a local notification when another Zelu user is nearby, even with the app in the background.
+- **🫧 Friend bubbles** — interactive bubbles you can drag and play with in a SpriteKit physics scene; each bubble grows or shrinks with how much you actually see that friend.
+- **🌀 The void** — neglect a friend and their bubble drifts into the void at the center; they wait there, but the longer you leave them the harder they are to rescue.
+- **🎯 Meeting goals (Metas)** — pick a cadence per friend (weekly, every 15 days, monthly, every 3 / 6 months, yearly); Zelu tracks it and nudges you when it's time to show up.
+- **📡 Add in person** — no links or QR codes; bring two phones close and Zelu detects the encounter over Bluetooth (CoreBluetooth) and the local network (MultipeerConnectivity).
+- **📸 Shared moments** — turn each in-person encounter into a photo in your shared gallery, building a timeline of the friendship.
+- **🔓 No account** — just a name and a photo; no signup, phone number, or email.
 - **👥 Groups** — organize friends into groups; one free group, with extra slots available via in-app purchase.
-- **📸 Shared moments** — attach a feed of posts and photos to each connection.
 - **☁️ iCloud sync** — profiles, connections, and groups sync across devices with CloudKit-backed SwiftData.
 
 ---
 
 ## ⚙️ How It Works
 
-1. **Create your profile** during a quick onboarding flow.
-2. **Add friends** — discover nearby Zelu users over Bluetooth / local network, or add them manually.
-3. **Set a Meta** for each friend — the meeting commitment that drives the relationship.
-4. **Log encounters** — meeting friends raises the score; silence lets it decay.
-5. **Watch the universe shift** — as scores change, friends move between closeness tiers and reposition their orbits in the scene.
+1. **Create your profile** — just a name and a photo, no signup.
+2. **Add friends in person** — bring your phones close and confirm the encounter; they connect over Bluetooth / local network.
+3. **Set a Meta** for each friend — choose how often you want to see them.
+4. **Meet in real life** — in-person encounters grow the friend's bubble; time apart shrinks it.
+5. **Rescue from the void** — neglected friends drift to the void; meet up to pull them back before it's too late.
 
 Under the hood, `MetaManager` owns the scoring and recomputes each connection's
-`RelationshipState`, which `FriendsScene` reads to lay out and animate every
-`FriendNode` around the central spiral. Persistence and sync run through a single
-CloudKit-backed SwiftData `ModelContainer`.
+`RelationshipState`, which `FriendsScene` reads to size and position every `FriendNode`
+bubble — pulling neglected ones toward the central void. Persistence and sync run through
+a single CloudKit-backed SwiftData `ModelContainer`.
 
 ---
 
@@ -127,7 +126,7 @@ ConexoesAmizaticas/
 ├── Models/                       # Connection, User, Meta, FriendGroup, RelationshipState…
 ├── ViewModels/                   # MVVM view models (Groups, Profile, BLE, Search…)
 ├── Views/                        # SwiftUI screens + reusable Components
-├── Scenes/                       # FriendsScene — the SpriteKit social universe
+├── Scenes/                       # FriendsScene — the SpriteKit bubble scene
 ├── Nodes/                        # FriendNode, SpringNode, CollisionNode
 ├── Managers/                     # BLE, Nearby, Store, Feed, Meta, CloudKit, notifications
 ├── Extensions/                   # Swift / SwiftUI helpers
