@@ -9,6 +9,7 @@
 import SwiftUI
 import UIKit
 import CoreData
+import Combine
 import _SpriteKit_SwiftUI
 import _SwiftData_SwiftUI
 
@@ -61,7 +62,12 @@ struct InitialView: View {
             return
         }
 
-        let nonFriends = users.filter { $0.connection == nil }
+        // A friend's `User` can import before its `Connection` links it (the `connection` inverse is
+        // briefly nil), so `connection == nil` alone isn't enough — cross-check the friend ids from the
+        // connections too. Otherwise a not-yet-linked friend looks like the lone non-friend and gets
+        // promoted to owner (`isOwner = true`, synced), which is the corruption that required a reinstall.
+        let friendIDs = Set(connections.compactMap { $0.friend?.id })
+        let nonFriends = users.filter { $0.connection == nil && !friendIDs.contains($0.id) }
         if let saved = nonFriends.first(where: { $0.id.uuidString == ownUserID }) {
             promoteToOwner(saved)
         } else if nonFriends.count == 1 {
@@ -170,9 +176,11 @@ struct InitialView: View {
         .onReceive(NotificationCenter.default.publisher(for: .friendProfileUpdated)) { _ in
             scene.updateNodeVisuals()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification).receive(on: RunLoop.main)) { _ in
             // CloudKit imports records incrementally — friend photos often arrive after the first paint.
             // Re-sync the scene and re-pull textures so avatars fill in without needing an app relaunch.
+            // CloudKit posts this on a background queue; `receive(on:)` moves the work to main so the
+            // `@Observable`/SpriteKit mutations below are legal ("Publishing changes from background threads").
             syncOwner()
             scene.updateConnections(receivedConnections: Set(connections.filter { !$0.inVacuo }))
             scene.updateNodeVisuals()

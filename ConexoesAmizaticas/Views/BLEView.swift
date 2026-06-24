@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import CoreBluetooth
 import Aptabase
 
 /// The proximity-based discovery and pairing screen.
@@ -149,6 +150,7 @@ struct BLEView: View {
             .zIndex(10)
         case .unavailable:
             BLEDisabledOverlay(
+                reason: viewModel.blNotificationManager.managerState == .poweredOff ? .poweredOff : .permissionDenied,
                 onOpenSettings: { openBluetoothSettings() }
             )
             .transition(.opacity)

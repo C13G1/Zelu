@@ -30,6 +30,11 @@ class NearbyPeopleViewModel {
     /// The profile of the device owner, shared with the people around.
     let profile: User
 
+    /// Observes Bluetooth power/permission so the radar can warn the user to turn Bluetooth on — the
+    /// proximity rings and the peer-to-peer connection both depend on it. Same manager the meeting
+    /// screen uses.
+    let bluetooth = BluetoothNotificationManager()
+
     private let manager: NearbyManager
 
     /// Distance from the center to each ring, as a fraction of the space between the own avatar
@@ -50,8 +55,10 @@ class NearbyPeopleViewModel {
 
     // MARK: - Lifecycle
 
-    /// Starts discovering people and watches for a mutual invite.
+    /// Starts discovering people and watches for a mutual invite. Also spins up the Bluetooth
+    /// observer so the view can react if the radio is off.
     func start() {
+        bluetooth.requestBluetoothPermission()
         manager.onMutualMatch = { [weak self] friend in
             self?.matchedFriend = friend
             self?.manager.pauseForMeeting()
@@ -73,6 +80,19 @@ class NearbyPeopleViewModel {
     /// Sends a meeting invite to the tapped person, or takes it back on a second tap.
     func toggleInvite(for person: NearbyPerson) {
         manager.toggleInvite(person.user.id)
+    }
+
+    /// True when discovery couldn't start — typically Local Network permission denied. The screen
+    /// shows guidance to enable it, since nobody is found without it.
+    var localNetworkDenied: Bool { manager.discoveryUnavailable }
+
+    /// True after the radar has searched a while and found nobody. Drives a soft, non-blocking hint
+    /// (an empty radar is ambiguous, so it only suggests what to check rather than asserting a cause).
+    var searchHint: Bool { manager.searchedWithoutResults }
+
+    /// Triggers the native Bluetooth permission prompt (and starts observing the radio's power state).
+    func requestBluetoothPermission() {
+        bluetooth.requestBluetoothPermission()
     }
 
     // MARK: - Ring layout

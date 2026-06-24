@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import StoreKit
 import CoreData
+import Combine
 
 
 /// The groups section under the tab bar: the carousel of existing groups and the create-group button.
@@ -94,8 +95,10 @@ struct FriendsGroupsView: View {
             GroupSlots.reconcile(existingCount: friendsGroupVM.friendsGroups.count)
         }
         // The VM fetches groups manually (not via @Query), so CloudKit imports that arrive after the view
-        // appeared won't show up on their own — refresh when CloudKit reports a sync event.
-        .onReceive(NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification)) { _ in
+        // appeared won't show up on their own — refresh when CloudKit reports a sync event. CloudKit posts
+        // this on a background queue, so hop to main before touching the VM ("Publishing changes from
+        // background threads is not allowed").
+        .onReceive(NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification).receive(on: RunLoop.main)) { _ in
             friendsGroupVM.fetchData()
             GroupSlots.reconcile(existingCount: friendsGroupVM.friendsGroups.count)
         }

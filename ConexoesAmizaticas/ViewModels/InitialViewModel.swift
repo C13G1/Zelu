@@ -26,11 +26,19 @@ class InitialViewModel {
             let userDescriptor        = FetchDescriptor<User>()
             let connectionsDescriptor = FetchDescriptor<Connection>()
             
-            var users                 = try modelContext.fetch(userDescriptor)
+            let users                 = try modelContext.fetch(userDescriptor)
             let connections           = try modelContext.fetch(connectionsDescriptor)
-            guard users.count > 0 else { return }
-            profile                   = users.removeFirst()
             connectionsWithFriends    = connections
+            guard !users.isEmpty else { return }
+            // Never adopt a friend as the owner profile. `FetchDescriptor<User>()` returns every
+            // profile, friends included (a friend is the `friend` side of a `Connection`, so its
+            // `connection` inverse is set). Grabbing `users.first` could pick a friend — that is what
+            // made some accounts "turn into a connection" after a CloudKit import. Resolve the real
+            // owner instead: the flagged profile, falling back to the one that is nobody's friend
+            // (cross-checking the connections too, since a friend can import before its link does).
+            let friendIDs = Set(connections.compactMap { $0.friend?.id })
+            let nonFriend = users.first { $0.connection == nil && !friendIDs.contains($0.id) }
+            profile                   = User.owner(in: users) ?? nonFriend ?? users[0]
         } catch {
             print("Fetch failed")
         }
