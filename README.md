@@ -47,9 +47,10 @@ in an interactive physics scene. You can drag them around and play with their ph
 and the **size** of each bubble shows how much you've actually been seeing that friend.
 
 At the center sits the **void** (`vácuo`). When a friendship goes too long without a
-real-world encounter, that friend's bubble shrinks and drifts into the void — they don't
-disappear, they wait there, but the longer you leave them the harder they are to rescue.
-You keep friends close by setting a **meeting goal** (`Meta`) and meeting them in person.
+real-world encounter, that friend's bubble shrinks and drifts into the void. Meet up in
+time and you pull them back out — but leave them too long and you lose the contact for
+good, having to reconnect in person from scratch. You keep friends close by setting a
+**meeting goal** (`Meta`) and meeting them in person.
 
 Adding friends happens in person: when you and a friend are near each other with the app
 open, your phones recognize each other over Bluetooth and the local network — no links,
@@ -78,7 +79,7 @@ Learn more at [**zelu.online**](https://zelu.online) (landing page repo:
 ## 🚀 Features
 
 - **🫧 Friend bubbles** — interactive bubbles you can drag and play with in a SpriteKit physics scene; each bubble grows or shrinks with how much you actually see that friend.
-- **🌀 The void** — neglect a friend and their bubble drifts into the void at the center; they wait there, but the longer you leave them the harder they are to rescue.
+- **🌀 The void** — neglect a friend and their bubble drifts into the void at the center; meet up in time to rescue them, or leave them too long and lose the contact entirely, having to reconnect in person.
 - **🎯 Meeting goals (Metas)** — pick a cadence per friend (weekly, every 15 days, monthly, every 3 / 6 months, yearly); Zelu tracks it and nudges you when it's time to show up.
 - **📡 Add in person** — no links or QR codes; bring two phones close and Zelu detects the encounter over Bluetooth (CoreBluetooth) and the local network (MultipeerConnectivity).
 - **📸 Shared moments** — turn each in-person encounter into a photo in your shared gallery, building a timeline of the friendship.
@@ -94,7 +95,7 @@ Learn more at [**zelu.online**](https://zelu.online) (landing page repo:
 2. **Add friends in person** — bring your phones close and confirm the encounter; they connect over Bluetooth / local network.
 3. **Set a Meta** for each friend — choose how often you want to see them.
 4. **Meet in real life** — in-person encounters grow the friend's bubble; time apart shrinks it.
-5. **Rescue from the void** — neglected friends drift to the void; meet up to pull them back before it's too late.
+5. **Rescue from the void** — neglected friends drift to the void; meet up to pull them back, or lose the contact and have to reconnect in person.
 
 Under the hood, `MetaManager` owns the scoring and recomputes each connection's
 `RelationshipState`, which `FriendsScene` reads to size and position every `FriendNode`
