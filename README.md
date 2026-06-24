@@ -66,10 +66,10 @@ Learn more at [**zelu.online**](https://zelu.online) (landing page repo:
 
 <div align="center">
 
-<img src="docs/universe.png" width="24%" alt="Friend bubbles"/>
-<img src="docs/profile.png" width="24%" alt="Friend profile"/>
-<img src="docs/nearby.png" width="24%" alt="Nearby discovery"/>
-<img src="docs/onboarding.png" width="24%" alt="Onboarding"/>
+<img src="docs/screenshots/universe.png" width="24%" alt="Friend bubbles"/>
+<img src="docs/screenshots/profile.png" width="24%" alt="Friend profile"/>
+<img src="docs/screenshots/nearby.png" width="24%" alt="Nearby discovery"/>
+<img src="docs/screenshots/vacuo.png" width="24%" alt="The void"/>
 
 </div>
 
