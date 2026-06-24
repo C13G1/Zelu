@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreBluetooth
 
 /// The user's own avatar sits at the bottom of the screen and three rings of dots orbit around it.
 /// Each nearby person appears on one of the rings: the closer the person is in real life, the
@@ -56,6 +57,9 @@ struct NearbyPeopleView: View {
                     .position(center)
             }
 
+            searchHintBanner
+
+            radarOverlay
         }
         .gesture(spinGesture)
         .navigationTitle("Pessoas por perto")
@@ -84,6 +88,67 @@ struct NearbyPeopleView: View {
             #endif
         }
         .onDisappear { viewModel.stop() }
+    }
+
+    /// Guides the user to fix whatever is blocking discovery: Local Network permission (without it the
+    /// radar finds nobody), Bluetooth permission, or Bluetooth simply being switched off. On the
+    /// simulator there is no radio, so nothing is shown and the radar plus its mock people stay testable.
+    @ViewBuilder
+    private var radarOverlay: some View {
+        #if targetEnvironment(simulator)
+        EmptyView()
+        #else
+        if viewModel.localNetworkDenied {
+            BLEDisabledOverlay(reason: .localNetworkDenied, onOpenSettings: openSettings)
+                .transition(.opacity)
+                .zIndex(10)
+        } else if viewModel.bluetooth.accessState == .needsPermission {
+            BLEPermissionOverlay(onAuthorize: { viewModel.requestBluetoothPermission() })
+                .transition(.opacity)
+                .zIndex(10)
+        } else if viewModel.bluetooth.accessState == .unavailable,
+                  viewModel.bluetooth.managerState != .unsupported {
+            BLEDisabledOverlay(
+                reason: viewModel.bluetooth.managerState == .poweredOff ? .poweredOff : .permissionDenied,
+                onOpenSettings: openSettings
+            )
+            .transition(.opacity)
+            .zIndex(10)
+        }
+        #endif
+    }
+
+    /// Soft, dismissable-by-success hint shown when the radar has found nobody for a while. An empty
+    /// radar is ambiguous (nobody around, or Bluetooth/Local Network off), so it only suggests what to
+    /// check. Tapping opens Settings. Hidden whenever a blocking overlay is already explaining the cause.
+    @ViewBuilder
+    private var searchHintBanner: some View {
+        if viewModel.searchHint {
+            VStack {
+                Button(action: openSettings) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "dot.radiowaves.left.and.right")
+                        Text("Ninguém por perto? Verifique o Bluetooth e a Rede Local nos Ajustes.")
+                            .font(Font.custom("Sora", size: 13).weight(.medium))
+                            .multilineTextAlignment(.leading)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.black.opacity(0.55))
+                    .clipShape(Capsule())
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 12)
+                Spacer()
+            }
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     /// Spins the rings like a dial: dragging sideways rotates everyone around the own avatar, so

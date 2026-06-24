@@ -91,6 +91,49 @@ final class NearbyManager: NSObject {
 
     private var peers: [MCPeerID: Peer] = [:]
 
+    /// True when MultipeerConnectivity refused to start browsing or advertising — almost always the
+    /// Local Network permission being denied (the radar can't find anyone without it). Drives the
+    /// "ligue a rede local" guidance on screen.
+    private(set) var discoveryUnavailable = false
+
+    /// True after browsing has run for a while without finding anyone. Multipeer does NOT reliably
+    /// report a denied Local Network permission, so an empty radar is ambiguous: nobody around, or a
+    /// radio/permission is off. This drives a soft hint telling the user what to check — without
+    /// claiming a specific cause. Cleared the moment a peer shows up.
+    private(set) var searchedWithoutResults = false
+
+    /// Fires once `searchHintDelay` after browsing starts to raise `searchedWithoutResults`.
+    private var searchHintTimer: Timer?
+    private static let searchHintDelay: TimeInterval = 10
+
+    private func startSearchHintTimer() {
+        searchHintTimer?.invalidate()
+        searchedWithoutResults = false
+        searchHintTimer = Timer.scheduledTimer(withTimeInterval: Self.searchHintDelay, repeats: false) { [weak self] _ in
+            guard let self, !self.paused else { return }
+            if self.people.isEmpty { self.searchedWithoutResults = true }
+        }
+    }
+
+    private func stopSearchHintTimer() {
+        searchHintTimer?.invalidate()
+        searchHintTimer = nil
+        searchedWithoutResults = false
+    }
+
+    /// Invite state kept by `user.id` so it survives a reconnect. A dropped peer comes back under a
+    /// fresh `MCPeerID` with its `Peer` rebuilt from scratch; without this, an invite sent before the
+    /// drop was forgotten and the other side never matched ("mandou o convite e a pessoa não recebe").
+    private var savedInvites: [UUID: (iInvited: Bool, theyInvited: Bool)] = [:]
+
+    /// Restores any remembered invite flags onto a freshly created peer.
+    private func restoreInvites(_ peer: Peer) {
+        if let saved = savedInvites[peer.user.id] {
+            peer.iInvited = saved.iInvited
+            peer.theyInvited = saved.theyInvited
+        }
+    }
+
     init(profile: User) {
         self.profile = profile
         self.ownID = profile.id.uuidString
@@ -122,6 +165,7 @@ final class NearbyManager: NSObject {
         guard session == nil else { return }
         print("nearby start")
         paused = false
+        discoveryUnavailable = false
         let peerID = MCPeerID(displayName: profile.id.uuidString)
         let session = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .none)
         session.delegate = self
@@ -145,21 +189,40 @@ final class NearbyManager: NSObject {
             self?.updateDistance(userIDStart: userID, meters: meters)
         }
         proximityScanner.start()
+        startSearchHintTimer()
     }
 
     /// Turns everything off. Call when the screen is left.
     func stop() {
         print("nearby stop")
+        stopSearchHintTimer()
         proximityScanner.stop()
-        advertiser?.stopAdvertisingPeer()
-        browser?.stopBrowsingForPeers()
+        teardownAdvertiser()
+        teardownBrowser()
+        session?.delegate = nil
         session?.disconnect()
-        advertiser = nil
-        browser = nil
         session = nil
         paused = false
+        discoveryUnavailable = false
         peers.removeAll()
+        savedInvites.removeAll()
         people.removeAll()
+    }
+
+    /// Detaches the delegate before stopping, then releases the browser. Discovery callbacks arrive
+    /// on a background thread, so stopping (or deallocating) the browser while one is in flight races
+    /// the underlying Bonjour cancel and crashed inside `_BrowserCancel`. Nil-ing the delegate first
+    /// guarantees no callback lands on a browser that is being torn down.
+    private func teardownBrowser() {
+        browser?.delegate = nil
+        browser?.stopBrowsingForPeers()
+        browser = nil
+    }
+
+    private func teardownAdvertiser() {
+        advertiser?.delegate = nil
+        advertiser?.stopAdvertisingPeer()
+        advertiser = nil
     }
 
     /// After a mutual invite, hides the pair from everyone else during the meeting. The disconnect
@@ -167,9 +230,10 @@ final class NearbyManager: NSObject {
     func pauseForMeeting() {
         print("nearby pause (meeting)")
         paused = true
+        stopSearchHintTimer()
         proximityScanner.stop()
-        advertiser?.stopAdvertisingPeer()
-        browser?.stopBrowsingForPeers()
+        teardownAdvertiser()
+        teardownBrowser()
         people.removeAll()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self, self.paused else { return }
@@ -183,11 +247,17 @@ final class NearbyManager: NSObject {
         start()
     }
 
-    /// Stops and restarts the search, so people seen before can be found again.
+    /// Restarts the search, so people seen before can be found again. Tears the old browser down
+    /// fully and builds a fresh one rather than stopping and immediately restarting the same object:
+    /// re-arming a browser mid-cancel re-enters the underlying Bonjour browser while it is tearing
+    /// down, which crashed inside `_BrowserCancel`. A new browser gets its own clean state.
     private func restartBrowsing() {
-        guard !paused, let browser else { return }
-        browser.stopBrowsingForPeers()
+        guard !paused, let session else { return }
+        teardownBrowser()
+        let browser = MCNearbyServiceBrowser(peer: session.myPeerID, serviceType: serviceType)
+        browser.delegate = self
         browser.startBrowsingForPeers()
+        self.browser = browser
     }
 
     // MARK: - Distance
@@ -240,6 +310,13 @@ final class NearbyManager: NSObject {
                 if $0.proximity != $1.proximity { return $0.proximity > $1.proximity }
                 return $0.user.name.localizedCaseInsensitiveCompare($1.user.name) == .orderedAscending
             }
+
+        // Someone is on the radar, so neither the "found nobody" hint nor the discovery-failed flag
+        // apply anymore.
+        if !people.isEmpty {
+            searchedWithoutResults = false
+            discoveryUnavailable = false
+        }
     }
 
     // MARK: - Invites
@@ -251,6 +328,7 @@ final class NearbyManager: NSObject {
         if peer.isMock { onMutualMatch?(peer.user); return }
         #endif
         peer.iInvited.toggle()
+        savedInvites[peer.user.id] = (peer.iInvited, peer.theyInvited)
         send(Packet(kind: peer.iInvited ? .invite : .cancel), to: peerID)
         rebuildGrid()
         checkMutual(peerID, peer)
@@ -274,7 +352,9 @@ final class NearbyManager: NSObject {
         // A profile can arrive from someone we never discovered ourselves. Register them here,
         // so whoever can see us is always seen by us too.
         if peers[peerID] == nil, packet.kind == .profile, let name = packet.name, let id = packet.userID {
-            peers[peerID] = Peer(user: User(name: name, profilePicture: Data(), id: id))
+            let peer = Peer(user: User(name: name, profilePicture: Data(), id: id))
+            restoreInvites(peer)
+            peers[peerID] = peer
         }
         guard let peer = peers[peerID] else { return }
         switch packet.kind {
@@ -287,8 +367,10 @@ final class NearbyManager: NSObject {
             send(profilePacket(), to: peerID)
         case .invite:
             peer.theyInvited = true
+            savedInvites[peer.user.id] = (peer.iInvited, peer.theyInvited)
         case .cancel:
             peer.theyInvited = false
+            savedInvites[peer.user.id] = (peer.iInvited, peer.theyInvited)
         }
         rebuildGrid()
         checkMutual(peerID, peer)
@@ -352,7 +434,12 @@ extension NearbyManager: MCNearbyServiceBrowserDelegate {
             guard let self, !self.paused, self.peers[peerID] == nil,
                   let name = info?["n"], let idString = info?["u"], let id = UUID(uuidString: idString)
             else { return }
-            self.peers[peerID] = Peer(user: User(name: name, profilePicture: Data(), id: id))
+            // Discovery is clearly working (we found someone), so any earlier "couldn't start" flag
+            // was transient — clear it.
+            self.discoveryUnavailable = false
+            let peer = Peer(user: User(name: name, profilePicture: Data(), id: id))
+            self.restoreInvites(peer)
+            self.peers[peerID] = peer
             self.rebuildGrid()
             // Only the side with the smaller id invites and the other accepts, keeping a single
             // connection per pair.
@@ -369,6 +456,13 @@ extension NearbyManager: MCNearbyServiceBrowserDelegate {
                 }
             }
         }
+    }
+
+    func browser(_ browser: MCNearbyServiceBrowser, didNotStartBrowsingForPeers error: Error) {
+        // Fired when browsing can't start — almost always Local Network permission denied. Flag it so
+        // the screen can tell the user to enable it; without it nobody is ever discovered.
+        print("nearby browse failed: \(error.localizedDescription)")
+        DispatchQueue.main.async { [weak self] in self?.discoveryUnavailable = true }
     }
 
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
@@ -399,6 +493,13 @@ extension NearbyManager: MCNearbyServiceAdvertiserDelegate {
             invitationHandler(true, session)
         }
     }
+
+    func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: Error) {
+        // Same story as the browser: usually Local Network permission denied. Surface it so the user
+        // can fix it instead of staring at an empty radar.
+        print("nearby advertise failed: \(error.localizedDescription)")
+        DispatchQueue.main.async { [weak self] in self?.discoveryUnavailable = true }
+    }
 }
 
 // MARK: - MCSessionDelegate (connection state + messages)
@@ -414,6 +515,12 @@ extension NearbyManager: MCSessionDelegate {
                 // Send our photo so the placeholder upgrades to the real picture.
                 self.send(self.profilePacket(), to: peerID)
                 self.schedulePhotoRetry(for: peerID)
+                // Re-assert a standing invite after a reconnect, so a peer that dropped and came back
+                // still sees it and the pair can match.
+                if let peer = self.peers[peerID], peer.iInvited {
+                    self.send(Packet(kind: .invite), to: peerID)
+                    self.checkMutual(peerID, peer)
+                }
             case .notConnected:
                 self.peers[peerID] = nil
                 self.rebuildGrid()
